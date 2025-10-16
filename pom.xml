@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Maven POM for generating Java classes from YAML schemas
+    
+    This file configures the jsonschema2pojo plugin to:
+    - Read YAML schemas from: schemas/schemas-yaml/
+    - Generate Java classes to: schemas/schemas-java/
+    
+    Usage: mvn generate-sources
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+         http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.algotrading</groupId>
+    <artifactId>schema-java-generator</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.15.2</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <version>2.15.2</version>
+        </dependency>
+        
+        <dependency>
+            <groupId>commons-lang</groupId>
+            <artifactId>commons-lang</artifactId>
+            <version>2.6</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.jsonschema2pojo</groupId>
+                <artifactId>jsonschema2pojo-maven-plugin</artifactId>
+                <version>1.2.1</version>
+                <configuration>
+                    <sourceDirectory>${basedir}/schemas/schemas-yaml</sourceDirectory>
+                    <targetPackage>com.pulse.data.schemas</targetPackage>
+                    <outputDirectory>${basedir}/schemas/schemas-java</outputDirectory>
+                    <annotationStyle>jackson2</annotationStyle>
+                    <includeConstructors>true</includeConstructors>
+                    <includeHashcodeAndEquals>true</includeHashcodeAndEquals>
+                    <includeToString>true</includeToString>
+                    <serializable>true</serializable>
+                    <useLongIntegers>true</useLongIntegers>
+                    <useDoubleNumbers>true</useDoubleNumbers>
+                    <generateBuilders>true</generateBuilders>
+                    <useTitleAsClassname>true</useTitleAsClassname>
+                    <sourceType>yamlschema</sourceType>
+                    <useBigDecimals>true</useBigDecimals>
+                </configuration>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>generate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

@@ -1,0 +1,42 @@
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: "schemas-yaml/event_metadata.json"
+title: EventMetadata
+description: Base metadata for all events in the Pulse platform
+type: object
+properties:
+  datumIntId:
+    type: integer
+    description: Unique integer identifier for this datum type
+  datumStringId:
+    type: string
+    description: Human-readable string identifier for this datum type
+  datumKey:
+    type: string
+    description: Unique key identifying this specific datum instance
+  datumTimestamp:
+    type: integer
+    description: Epoch time (milliseconds) representing the datum time
+  datumDatetime:
+    type: string
+    format: date-time
+    description: Optional ISO-8601 datetime corresponding to datumTimestamp for readability
+  datumPublishedTime:
+    type: integer
+    description: Epoch time (milliseconds) at which the datum was published
+  datumReceivedTime:
+    type: integer
+    description: Epoch time (milliseconds) at which the datum was received
+  eventVersion:
+    type: integer
+    description: Version of this event schema for compatibility tracking
+  eventPayload:
+    type: object
+    description: The event payload (structure defined by the event type)
+    additionalProperties: true
+required:
+  - datumIntId
+  - datumStringId
+  - datumKey
+  - datumTimestamp
+  - eventPayload
+additionalProperties: false
