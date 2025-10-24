@@ -1,10 +1,10 @@
 # Usage
 # 1: Create env from the file
 #    from this current folder:
-#    conda env create -p /path/to/your/project/pulse-py-3-10 -f py_environment.yml
+#    conda env create -p /path/to/your/project/pulse-py-3-10 -f py_environment_314.yml
 #    conda activate pulse-py-3-14
 # 2: Update the env
-#    conda env update -f py_environment.yml
+#    conda env update -f py_environment_314.yml
 
 
 name: pulse-py-3-14
