@@ -1,6 +1,7 @@
+from configparser import ConfigParser
 from datetime import datetime
 from pipelines.DataPipeline import StageResult, PipelineContext
-from commons.parametrization.PythonParametrization import PythonParametrization
+
 from commons.utils.LoggingUtils import instantiate_logging
 # Airflow specific configuration
 from airflow.operators.python import PythonOperator
@@ -22,7 +23,8 @@ class AirflowPipelineContext(PipelineContext):
         logger = instantiate_logging(log_id=f"{dag_id}.{task_id}")
         # Load config file
         config_file =  airflow_kwargs.get("configuration_file")
-        params = PythonParametrization(config_ini_file=config_file)
+        params = ConfigParser()
+        params.read(config_file)
 
         # Optionally inject Airflow context info
         params.airflow_context = {
@@ -30,9 +32,7 @@ class AirflowPipelineContext(PipelineContext):
             "task_id": task_id,
             "execution_date": execution_date,
         }
-        ctx = PipelineContext()
-        ctx.params = params
-        ctx.logger = logger
+        ctx = PipelineContext(params, logger)
         return ctx
 
 

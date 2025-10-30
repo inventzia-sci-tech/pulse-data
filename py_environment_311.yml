@@ -23,4 +23,4 @@ dependencies:
       - pandas
       - sqlalchemy
       - datamodel-code-generator
-      - apache-airflow[postgres]==2.10.2
+      - apache-airflow_pipelines[postgres]==2.10.2

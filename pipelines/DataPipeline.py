@@ -1,3 +1,4 @@
+import configparser
 from dataclasses import dataclass, field
 from typing import Dict, Any, Tuple
 from enum import Enum, auto
@@ -27,7 +28,7 @@ class StageResult(Enum):
 @dataclass
 class PipelineContext:
     """Runtime context for the entire pipeline."""
-    params: PythonParametrization
+    params: configparser.ConfigParser
     logger: logging.Logger
     artifacts: Dict[str, Any] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=lambda: {"run_id": datetime.utcnow().isoformat()})
