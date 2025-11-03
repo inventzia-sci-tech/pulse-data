@@ -1,5 +1,6 @@
 import datetime
 import pytz
+import holidays
 import calendar
 import numpy as np
 from datetime import date, timedelta, time, datetime
@@ -19,6 +20,19 @@ def parse_iso_date(s):
 
 def format_to_isodatetime(dtm : datetime):
     return dtm.strftime(iso_datetime_format)
+
+
+def prev_business_day(d=None, region_str: str = 'US'):
+    holidays_to_use = None
+    if region_str == 'US':
+        holidays_to_use = holidays.US()
+    else:
+        raise Exception('Todo: support other regions other than "US"')
+    d = d or date.today()
+    d -= timedelta(days=1)
+    while d.weekday() >= 5 or d in holidays_to_use:
+        d -= timedelta(days=1)
+    return d
 
 
 def generate_first_dates_of_months_in_period(start_date : date , end_date : date) -> List[date]:
