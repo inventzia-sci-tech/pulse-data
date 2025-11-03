@@ -32,9 +32,8 @@ class CSVVectorizedStorage(Generic[T]):
 
     def __init__(self, schema_class: Type[T],
                        vectorize_by: Optional[List[str]] = None,
-                       config_section: str = "CsvStorage",
-                       key_path: str = "CsvPath",
-                       key_filename_prefix: str = "CsvPrefix"):
+                       csv_path: str = "CsvPath",
+                       csv_filename_prefix: str = "CsvPrefix"):
         """
         Initialize the CSV vectorized storage.
 
@@ -59,19 +58,8 @@ class CSVVectorizedStorage(Generic[T]):
         """
         self.schema_class = schema_class
         self.vectorize_by = vectorize_by or []
-        self.config_section = config_section
-        self.key_path = key_path
-        self.key_filename_prefix = key_filename_prefix
-
-
-    def configure_from_config(self, config: str) -> None:
-        """
-        Configure storage by specifying the base directory.
-
-        :param config: Path to the base directory where CSV files will be stored.
-        """
-        self.base_path = config
-        os.makedirs(self.base_path, exist_ok=True)
+        self.csv_path = csv_path
+        self.csv_filename_prefix = csv_filename_prefix
 
 
     def _get_file_path(self, row: Dict[str, Any]) -> str:
@@ -82,8 +70,8 @@ class CSVVectorizedStorage(Generic[T]):
         :return: Full path to the CSV file where this row should be stored.
         """
         parts = [f"{f}_{row[f]}" for f in self.vectorize_by]
-        filename = "_".join([self.filename_prefix] + parts) + ".csv"
-        return os.path.join(self.base_path, filename)
+        filename = "_".join([self.csv_filename_prefix] + parts) + ".csv"
+        return os.path.join(self.csv_path, filename)
 
 
     def write(self, data: Union[List[T], pd.DataFrame], **kwargs) -> None:
@@ -94,22 +82,18 @@ class CSVVectorizedStorage(Generic[T]):
         """
         if not self.base_path:
             raise ValueError("Storage not configured. Call configure_from_config first.")
-
         if data is None or (isinstance(data, list) and not data):
             return
-
         # Convert DataFrame to list of dicts if necessary
         if isinstance(data, pd.DataFrame):
             rows = data.to_dict(orient="records")
         else:  # Assume list of BaseModel objects
             rows = [d.dict() for d in data]
-
         # Group rows by vectorize_by fields
         grouped: Dict[tuple, List[Dict[str, Any]]] = {}
         for row in rows:
             key = tuple(row[f] for f in self.vectorize_by) if self.vectorize_by else ("all",)
             grouped.setdefault(key, []).append(row)
-
         # Write each group to its own CSV
         for key, group_rows in grouped.items():
             file_path = self._get_file_path(group_rows[0])
