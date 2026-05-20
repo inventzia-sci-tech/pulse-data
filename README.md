@@ -19,3 +19,33 @@ Data models for pulse applications
 
 See the [schemas generation README](./schemas/schemas-generators/readme.md) for more details on how to autogenerate
 the .py files and .java classes from the yaml definitions.
+
+## Licensing
+
+This project is dual-licensed:
+
+- **Open Source License (AGPL v3)** – see [`LICENSE-AGPL-3.0`](./LICENSE-AGPL-3.0).
+- **Commercial License** – see [`COMMERCIAL.md`](./COMMERCIAL.md) for the
+  informational summary and [`LICENSE-COMMERCIAL.txt`](./LICENSE-COMMERCIAL.txt)
+  for the binding terms.
+
+Contact: operations@inventzia.com for commercial licensing.
+
+## Contributing
+
+Contributions are welcome. By submitting a contribution you agree to the
+terms in [`CLA.md`](./CLA.md), including the Developer Certificate of Origin
+sign-off and the dual-licensing grant. CI enforces DCO sign-off on every PR
+commit.
+
+## Security
+
+Please report security vulnerabilities privately as described in
+[`SECURITY.md`](./SECURITY.md). Do not open public issues for security
+problems.
+
+## Trademarks
+
+"Pulse" and "Inventzia" are trademarks of Inventzia Science and Technology
+Ltd. The licenses for this software do not grant any rights to use these
+trademarks.
