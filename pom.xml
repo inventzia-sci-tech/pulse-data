@@ -10,79 +10,107 @@
     - Under a commercial license (see LICENSE-COMMERCIAL.txt).
       Contact operations@inventzia.com.
 -->
-
 <!--
-    Maven POM for generating Java classes from YAML schemas
-    
-    This file configures the jsonschema2pojo plugin to:
-    - Read YAML schemas from: schemas/schemas-yaml/
-    - Generate Java classes to: schemas/schemas-java/
-    
-    Usage: mvn generate-sources
+  Compiles the hand-written Datum interface (datum/java/) and the generated
+  schema record classes (schemas/schemas_java/) into a single artifact.
+
+  Java code generation is performed by the Python scripts in
+  schemas/schemas-generators/ — run generate_java.py before building.
+  The generated files are committed to the repository so the build works
+  without running the generator first.
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
          http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.algotrading</groupId>
-    <artifactId>schema-java-generator</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <groupId>com.inventzia.pulse</groupId>
+    <artifactId>pulse-data</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <packaging>jar</packaging>
+
+    <name>pulse-data</name>
+    <description>
+        YAML-as-source-of-truth data schemas for the Pulse platform.
+        Contains the Datum routing interface and generated immutable record
+        classes for all event types.
+    </description>
+    <inceptionYear>2013</inceptionYear>
+
+    <organization>
+        <name>Inventzia Science and Technology Ltd.</name>
+        <url>https://inventzia.com</url>
+    </organization>
+
+    <licenses>
+        <license>
+            <name>GNU Affero General Public License v3.0 or later</name>
+            <url>https://www.gnu.org/licenses/agpl-3.0.html</url>
+            <distribution>repo</distribution>
+        </license>
+        <license>
+            <name>Inventzia Commercial License</name>
+            <distribution>manual</distribution>
+            <comments>Contact operations@inventzia.com</comments>
+        </license>
+    </licenses>
 
     <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.release>17</maven.compiler.release>
+        <jackson.version>2.18.2</jackson.version>
     </properties>
 
     <dependencies>
+        <!-- JSON serialisation for generated record classes -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.15.2</version>
+            <version>${jackson.version}</version>
         </dependency>
-        
+        <!-- java.time support (Instant, LocalDate) used by generated schemas -->
         <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
-            <artifactId>jackson-dataformat-yaml</artifactId>
-            <version>2.15.2</version>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
-        
+        <!-- @Nullable annotations on optional record components -->
         <dependency>
-            <groupId>commons-lang</groupId>
-            <artifactId>commons-lang</artifactId>
-            <version>2.6</version>
+            <groupId>org.jspecify</groupId>
+            <artifactId>jspecify</artifactId>
+            <version>1.0.0</version>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
             <plugin>
-                <groupId>org.jsonschema2pojo</groupId>
-                <artifactId>jsonschema2pojo-maven-plugin</artifactId>
-                <version>1.2.1</version>
-                <configuration>
-                    <sourceDirectory>${basedir}/schemas/schemas-yaml</sourceDirectory>
-                    <targetPackage>com.pulse.data.schemas</targetPackage>
-                    <outputDirectory>${basedir}/schemas/schemas-java</outputDirectory>
-                    <annotationStyle>jackson2</annotationStyle>
-                    <includeConstructors>true</includeConstructors>
-                    <includeHashcodeAndEquals>true</includeHashcodeAndEquals>
-                    <includeToString>true</includeToString>
-                    <serializable>true</serializable>
-                    <useLongIntegers>true</useLongIntegers>
-                    <useDoubleNumbers>true</useDoubleNumbers>
-                    <generateBuilders>true</generateBuilders>
-                    <useTitleAsClassname>true</useTitleAsClassname>
-                    <sourceType>yamlschema</sourceType>
-                    <useBigDecimals>true</useBigDecimals>
-                </configuration>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+            </plugin>
+
+            <!--
+              Add the hand-written Datum interface (datum/java/) and the
+              generated schema classes (schemas/schemas_java/) as source roots
+              alongside the default src/main/java/.
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.0</version>
                 <executions>
                     <execution>
-                        <goals>
-                            <goal>generate</goal>
-                        </goals>
+                        <id>add-source</id>
+                        <phase>generate-sources</phase>
+                        <goals><goal>add-source</goal></goals>
+                        <configuration>
+                            <sources>
+                                <source>datum/java/src/main/java</source>
+                                <source>schemas/schemas_java</source>
+                            </sources>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

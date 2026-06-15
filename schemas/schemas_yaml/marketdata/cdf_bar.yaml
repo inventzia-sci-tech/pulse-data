@@ -9,85 +9,90 @@
 #     Contact operations@inventzia.com.
 
 $schema: "http://json-schema.org/draft-07/schema#"
-$id: "schemas-yaml/cdf_bar.yaml"
-title: MarketDataBar
-description: Schema for a cdf (common data format) market data bar
+$id: "com.inventzia.pulse.data.schemas.marketdata.CdfBar"
+title: CdfBar
+description: Common data format (CDF) market data bar.
 type: object
+
 properties:
+
   symb:
     type: string
-    description: Instrument symbol or identifier
-
-  op:
-    type: number
-    format: decimal
-    description: Open price
-
-  hi:
-    type: number
-    format: decimal
-    description: High price
-
-  lo:
-    type: number
-    format: decimal
-    description: Low price
-
-  cl:
-    type: number
-    format: decimal
-    description: Close price
-
-  vlm:
-    type: number
-    format: decimal
-    description: Volume traded during this bar
-
-  vwap:
-    type: number
-    format: decimal
-    description: Volume-weighted average price (optional)
-
-  datetime:
-    type: string
-    format: date-time
-    description: ISO 8601 timestamp representing the bar’s open/close time
-
-  count:
-    type: integer
-    description: Number of trades aggregated in this bar (optional)
+    description: Instrument symbol or identifier.
+    x-datum-key: true                    # routing key: the instrument symbol
 
   timestamp:
     type: integer
     format: int64
-    description: Epoch timestamp (milliseconds) when the bar was generated or received
+    description: Epoch milliseconds representing the bar open time.
+    x-datum-time: true                   # routing time: the bar timestamp
+
+  op:
+    type: number
+    format: decimal
+    description: Open price.
+
+  hi:
+    type: number
+    format: decimal
+    description: High price.
+
+  lo:
+    type: number
+    format: decimal
+    description: Low price.
+
+  cl:
+    type: number
+    format: decimal
+    description: Close price.
+
+  vlm:
+    type: number
+    format: decimal
+    description: Volume traded during this bar.
+
+  vwap:
+    type: number
+    format: decimal
+    description: Volume-weighted average price (optional).
+
+  datetime:
+    type: string
+    format: date-time
+    description: ISO 8601 datetime of the bar open time.
+
+  count:
+    type: integer
+    description: Number of trades aggregated in this bar (optional).
 
   date:
     type: string
     format: date
-    description: Trading date for the bar
+    description: Trading date for the bar.
 
   expiry:
     type: string
-    description: Option or futures expiry (optional)
+    description: Option or futures expiry (optional).
 
   strike:
     type: number
     format: decimal
-    description: Option strike price (optional)
+    description: Option strike price (optional).
 
   symExp:
     type: string
-    description: Symbol + expiry composite identifier (optional)
+    description: Symbol + expiry composite identifier (optional).
 
 required:
   - symb
+  - timestamp
   - op
   - hi
   - lo
   - cl
   - vlm
   - datetime
-  - timestamp
   - date
+
 additionalProperties: false

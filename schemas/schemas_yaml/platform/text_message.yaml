@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Inventzia-Commercial
+# Copyright (c) 2013-2026 Magrino Bini, Paola Apruzzese, Inventzia Science and Technology Ltd.
+#
+# This file is part of pulse-data.
+#
+# pulse-data is dual-licensed:
+#   - Under the GNU Affero General Public License v3.0 or later (see LICENSE-AGPL-3.0).
+#   - Under a commercial license (see LICENSE-COMMERCIAL.txt).
+#     Contact operations@inventzia.com.
+
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: "com.inventzia.pulse.data.schemas.platform.TextMessage"
+title: TextMessage
+description: >
+  Generic carrier for a free-text string payload. The platform equivalent of a
+  plain message — useful for diagnostics, echo/relay examples, and any actor or
+  gateway that needs to move arbitrary text on a topic.
+type: object
+
+properties:
+
+  msgKey:
+    type: string
+    description: >
+      Routing key for this message — e.g. a channel, source identifier, or
+      logical stream name.
+    x-datum-key: true                    # routing key: the message channel/source
+
+  msgTime:
+    type: integer
+    format: int64
+    description: Epoch milliseconds when the message was created.
+    x-datum-time: true                   # routing time: message creation time
+
+  text:
+    type: string
+    description: The free-text payload.
+
+required:
+  - msgKey
+  - msgTime
+  - text
+
+additionalProperties: false

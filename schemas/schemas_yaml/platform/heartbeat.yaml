@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Inventzia-Commercial
+# Copyright (c) 2013-2026 Magrino Bini, Paola Apruzzese, Inventzia Science and Technology Ltd.
+#
+# This file is part of pulse-data.
+#
+# pulse-data is dual-licensed:
+#   - Under the GNU Affero General Public License v3.0 or later (see LICENSE-AGPL-3.0).
+#   - Under a commercial license (see LICENSE-COMMERCIAL.txt).
+#     Contact operations@inventzia.com.
+
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: "com.inventzia.pulse.data.schemas.platform.HeartBeat"
+title: HeartBeat
+description: >
+  Periodic platform heartbeat produced by HeartBeatGateway.
+  Actors subscribe to a heartbeat Topic to implement periodic behaviour
+  (analytics windows, timeout checks) that fires at regular simulation-time
+  intervals regardless of whether domain events arrive in that interval.
+type: object
+
+properties:
+
+  beatKey:
+    type: string
+    description: >
+      Heartbeat identifier. Typically a fixed label (e.g. "PERIODIC") or a
+      group key when multiple independent heartbeat streams are needed.
+    x-datum-key: true                    # routing key: the beat identifier
+
+  beatTime:
+    type: integer
+    format: int64
+    description: Scheduled beat time in epoch milliseconds.
+    x-datum-time: true                   # routing time: when the beat fires
+
+required:
+  - beatKey
+  - beatTime
+
+additionalProperties: false

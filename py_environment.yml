@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Inventzia-Commercial
+# Copyright (c) 2013-2026 Magrino Bini, Paola Apruzzese, Inventzia Science and Technology Ltd.
+#
+# This file is part of pulse-data.
+#
+# pulse-data is dual-licensed:
+#   - Under the GNU Affero General Public License v3.0 or later (see LICENSE-AGPL-3.0).
+#   - Under a commercial license (see LICENSE-COMMERCIAL.txt).
+#     Contact operations@inventzia.com.
+
+# Minimal environment for pulse-data: just the schema generators and the
+# generated Pydantic models. No pipeline/storage/airflow dependencies — those
+# live in pulse-utils.
+#
+# Usage (from this folder):
+#   conda env create -f py_environment.yml
+#   conda activate pulse-data
+
+
+name: pulse-data
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - pyyaml                      # read YAML schemas in the generators
+      - datamodel-code-generator    # (optional) alt Pydantic generation
+      - pydantic                    # import/validate the generated models

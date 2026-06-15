@@ -1,97 +1,179 @@
 # pulse-data
 
-**pulse-data** is the single source of truth for event and data schemas used across the Pulse
-platform. Schemas are defined once in YAML and code-generated into strongly-typed classes for
-both Java and Python. This eliminates hand-written serialisation code, prevents language-side
-drift, and makes schema versioning explicit.
+**pulse-data** is the single source of truth for the data types that flow across the Pulse
+platform. Every event type is defined once in YAML and code-generated into strongly-typed,
+immutable classes for both Java and Python. There is no hand-written serialisation code and no
+way for the two language bindings to drift apart — they are projections of the same schema.
 
-## Design intent
+A consumer of pulse-data gets two things: a small, stable **routing contract** (`Datum`) that the
+transport layer depends on, and a growing set of **generated data classes** that implement it.
 
-The old approach — hand-written Java base classes with CSV serialisation and Python wrappers via
-a Java bridge — was fragile: field definitions lived in three places, positional CSV broke on
-comma-containing values, and a Java package rename could break Python at import. pulse-data
-replaces all of that with a single YAML definition per event type, from which everything else is
-derived.
+This repository is deliberately narrow. It contains *only* the data definition — the contract,
+the schemas, and the generators. It pulls no pandas, no SQLAlchemy, no Airflow. Anything that
+*uses* the data (ingestion pipelines, storage backends, orchestration, shared helpers) lives in
+**[pulse-utils](https://github.com/inventzia-sci-tech/pulse-utils)** and depends on pulse-data,
+never the other way round.
 
-Generated Java classes implement `com.inventzia.beacon.core.Event` (from
-[pulse-beacon](https://github.com/inventzia-sci-tech/pulse-beacon)) and are annotated for Jackson
-serialisation. Generated Python classes are Pydantic models. Both sides deserialise the same JSON
-wire format.
+---
 
-## Repository structure
+## What lives here
 
+| Area | Path | What it is |
+|------|------|-----------|
+| Routing contract | `datum/` | Hand-written `Datum` interface (Java) and `Protocol` (Python). The stable API everything else conforms to. |
+| JSON serializer | `datum/` | `DatumCodec` — the canonical, shared serializer for `Datum` types (see below). |
+| Schema sources | `schemas/schemas_yaml/` | YAML definitions — the single source of truth. |
+| Generated Java | `schemas/schemas_java/` | Immutable Java `record` classes. Build artefact; do not edit. |
+| Generated Python | `schemas/schemas_py/` | Pydantic v2 models. Build artefact; do not edit. |
+| Generators | `schemas/schemas-generators/` | `generate_java.py`, `generate_python.py`. |
+
+Everything here is light: the Java side compiles to a small jar (Jackson + JSpecify only); the
+Python side needs just PyYAML, datamodel-code-generator, and Pydantic.
+
+---
+
+## Core idea: schema → routing-aware data class
+
+A schema is plain JSON-Schema (draft-07) in YAML, with two pulse-specific annotations that mark
+which fields carry routing meaning:
+
+```yaml
+# schemas/schemas_yaml/marketdata/cdf_bar.yaml
+$id: "com.inventzia.pulse.data.schemas.marketdata.CdfBar"
+title: CdfBar
+type: object
+properties:
+  symb:
+    type: string
+    x-datum-key: true        # this field is the routing key
+  timestamp:
+    type: integer
+    format: int64
+    x-datum-time: true       # this field is the logical event time
+  op:    { type: number, format: decimal }
+  # ... more fields ...
+required: [symb, timestamp, op]
 ```
-pulse-data/
-├── schemas/
-│   ├── schemas_yaml/          # YAML source of truth (JSON Schema draft-07)
-│   │   ├── event_metadata.yaml
-│   │   └── marketdata/
-│   │       └── cdf_bar.yaml
-│   ├── schemas_java/          # Code-generated Java classes (do not edit by hand)
-│   ├── schemas_py/            # Code-generated Python Pydantic models (do not edit by hand)
-│   └── schemas-generators/    # Generation scripts and instructions
-├── pipelines/                 # Python data pipeline base classes (DataPipeline)
-├── storage/
-│   ├── file/                  # File-based storage implementation
-│   └── sqldb/                 # SQL-based storage implementation
-├── commons/
-│   ├── ftp/                   # FTP utilities
-│   ├── parametrization/       # Config/parametrization helpers
-│   └── utils/                 # Shared utilities
-└── airflow_pipelines/         # Airflow DAG templates for pipeline orchestration
+
+From this, the generators produce classes that implement the `Datum` contract by delegating to the
+annotated fields:
+
+**Java** (`schemas_java/.../CdfBar.java`) — an immutable record:
+```java
+public record CdfBar(String symb, long timestamp, BigDecimal op /* ... */)
+        implements Datum {
+    public static final String TYPE_ID      = "com.inventzia.pulse.data.schemas.marketdata.CdfBar";
+    public static final int    TYPE_VERSION = 1;
+    @Override public String getDatumKey()  { return symb; }
+    @Override public long   getDatumTime() { return timestamp; }
+}
 ```
 
-> **Note:** The generated directories (`schemas_java/`, `schemas_py/`) are committed for
-> convenience but should be treated as build artefacts. Always regenerate after editing YAML.
+**Python** (`schemas_py/.../cdf_bar.py`) — a Pydantic v2 model satisfying the `Datum` protocol:
+```python
+class CdfBar(BaseModel):
+    TYPE_ID:      ClassVar[str] = "com.inventzia.pulse.data.schemas.marketdata.CdfBar"
+    TYPE_VERSION: ClassVar[int] = 1
+    symb: str
+    timestamp: int
+    # ...
+    @property
+    def datum_key(self) -> str:  return self.symb
+    @property
+    def datum_time(self) -> int: return self.timestamp
+```
 
-## Defining a new event schema
+---
 
-1. Create a YAML file under `schemas/schemas_yaml/` following JSON Schema draft-07.
-2. Extend `event_metadata.yaml` via `$ref` for the standard routing and timestamp fields
-   (`datumKey`, `datumTimestamp`, `datumPublishedTime`, `datumReceivedTime`, `eventVersion`).
-3. Run the generators (see `schemas/schemas-generators/`) to produce Java and Python classes.
-4. The generated Java class must implement `com.inventzia.beacon.core.Event` and declare
-   `public static final String TYPE_ID` equal to the schema `$id`. This is validated by
-   `Topic<E>` at construction time.
+## Design decisions
 
-See [`schemas/schemas-generators/readme.md`](./schemas/schemas-generators/readme.md) for
-step-by-step generation instructions.
+- **YAML is the only source of truth.** Field definitions exist in exactly one place. Java and
+  Python are generated, never hand-edited. Regenerate after every schema change.
 
-## Schema versioning
+- **`$id` is the type identity.** Each schema's `$id` is the fully-qualified class name and becomes
+  the `TYPE_ID` constant in both languages — the single discriminator used for routing and
+  deserialisation. There is no separate numeric id to keep in sync.
 
-Every event schema should include an `eventVersion` integer field. Gateways and engines use this
-for compatibility checks when producers and consumers are built at different times. Increment the
-version when making a breaking change to a schema; add new optional fields without incrementing.
+- **The `Datum` contract is minimal.** Two methods — `getDatumKey()` and `getDatumTime()` — are all
+  the transport layer needs to route and time-order data. The schema author decides which domain
+  fields fulfil them via `x-datum-key` / `x-datum-time`. Nothing else about the payload is exposed
+  to the infrastructure.
 
-## Known open issues
+- **Data classes are immutable.** Java records and frozen-by-convention Pydantic models. A value on
+  the bus cannot be mutated by one consumer and observed changed by another.
 
-- `event_metadata.yaml` still carries `datumIntId` — a legacy field from the old integer-ID
-  system. This will be removed; type identity is now the `typeId()` string from the schema `$id`.
-- The envelope+payload split (`EventMetadata` wrapping a free-form `EventPayload`) will be
-  replaced with per-event flat schemas that compose the base metadata fields via `$ref`.
-- A Java ↔ Python round-trip test (serialise in Java, deserialise in Python, compare) is planned
-  but not yet written.
+- **JSON is the wire format.** Java (Jackson) and Python (Pydantic) serialise to and from the same
+  JSON, so a value produced in one language is consumed verbatim in the other.
+
+- **Serialization is owned here, not by callers.** Because pulse-data owns the types and schemas,
+  it also owns how a `Datum` becomes JSON. `DatumCodec` is the canonical serializer, a shared
+  singleton (`DatumCodec.instance()`), with `toJson(Datum)` / `fromJson(json, type)` as its whole
+  surface. It configures the JSON policy *once* for every field type the schemas use — JSR-310
+  `java.time` written as ISO-8601, `BigDecimal` for exact decimals, unknown properties ignored on
+  read for forward compatibility — and hides the underlying engine (Jackson) entirely. Consumers
+  never construct or pass a JSON mapper; downstream code (e.g. pulse-beacon's gateways) uses the
+  singleton and never references Jackson.
+
+  > Today `fromJson` is type-directed (the caller supplies the target class). A self-describing
+  > `Datum fromJson(String)` backed by a generated `TYPE_ID → Class` registry will be added when
+  > the socket/ZMQ transport needs it.
+
+- **Python uses structural typing.** The Python `Datum` is a `Protocol`; generated models satisfy
+  it by exposing `datum_key` / `datum_time` properties — no inheritance, no import coupling.
+
+---
+
+## Adding a new data type
+
+1. Create a YAML schema under `schemas/schemas_yaml/<area>/`, with a unique `$id`, a `title`
+   (becomes the class name), and exactly one `x-datum-key` and one `x-datum-time` field.
+2. Regenerate both bindings:
+   ```bash
+   cd schemas/schemas-generators
+   conda run -n pulse-data python generate_java.py
+   conda run -n pulse-data python generate_python.py
+   ```
+3. Commit the YAML **and** the regenerated Java/Python output.
+
+See [`schemas/schemas-generators/readme.md`](./schemas/schemas-generators/readme.md) for generator
+options (paths, dry-run, verbose).
+
+---
+
+## Environment
+
+The Python generators run in the minimal conda environment defined by
+[`py_environment.yml`](./py_environment.yml):
+
+```bash
+conda env create -f py_environment.yml
+conda activate pulse-data
+```
+
+Java sources (the `Datum` interface and generated records) build with Maven via
+[`pom.xml`](./pom.xml); Java 17+.
+
+---
 
 ## Licensing
 
-This project is dual-licensed:
+Dual-licensed:
 
 - **Open Source (AGPL v3.0 or later)** — see [`LICENSE-AGPL-3.0`](./LICENSE-AGPL-3.0).
-- **Commercial License** — see [`COMMERCIAL.md`](./COMMERCIAL.md) for the informational summary
-  and [`LICENSE-COMMERCIAL.txt`](./LICENSE-COMMERCIAL.txt) for the binding terms.
+- **Commercial License** — see [`COMMERCIAL.md`](./COMMERCIAL.md) for the summary and
+  [`LICENSE-COMMERCIAL.txt`](./LICENSE-COMMERCIAL.txt) for the binding terms.
 
-Contact: operations@inventzia.com for commercial licensing.
+Contact operations@inventzia.com for commercial licensing.
 
 ## Contributing
 
-Contributions are welcome. By submitting a contribution you agree to the terms in
-[`CLA.md`](./CLA.md), including the Developer Certificate of Origin sign-off and the
-dual-licensing grant. CI enforces DCO sign-off on every PR commit.
+By submitting a contribution you agree to [`CLA.md`](./CLA.md), including the Developer Certificate
+of Origin sign-off and the dual-licensing grant. CI enforces DCO sign-off on every PR commit.
 
 ## Security
 
-Please report security vulnerabilities privately as described in [`SECURITY.md`](./SECURITY.md).
-Do not open public issues for security problems.
+Report vulnerabilities privately per [`SECURITY.md`](./SECURITY.md). Do not open public issues for
+security problems.
 
 ## Trademarks
 
