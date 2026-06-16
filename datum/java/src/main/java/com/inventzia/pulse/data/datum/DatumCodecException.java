@@ -14,6 +14,10 @@ package com.inventzia.pulse.data.datum;
 /** Unchecked exception thrown by {@link DatumCodec} when (de)serialization fails. */
 public class DatumCodecException extends RuntimeException {
 
+    public DatumCodecException(String message) {
+        super(message);
+    }
+
     public DatumCodecException(String message, Throwable cause) {
         super(message, cause);
     }

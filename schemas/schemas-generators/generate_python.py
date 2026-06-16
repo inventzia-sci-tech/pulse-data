@@ -12,16 +12,28 @@
 Generate Pydantic v2 model classes from YAML schemas.
 
 Each generated class:
+  - Lives under inventzia.pulse.data.schemas.<subpackage> (mirrors the Java
+    package and the inventzia.pulse.data.datum protocol — one namespace, two
+    languages)
   - Extends pydantic.BaseModel with model_config(extra='forbid')
   - Declares TYPE_ID (equals the schema $id) and TYPE_VERSION as ClassVars
   - Implements datum_key and datum_time properties driven by x-datum-key /
     x-datum-time YAML annotations
   - Satisfies the inventzia.pulse.data.datum.Datum Protocol structurally
 
+A generated ``registry.py`` (the Python mirror of the Java DatumTypeRegistry)
+maps every TYPE_ID to its model class, so the codec can deserialize a tagged
+envelope without being told the type.
+
+The output tree uses PEP 420 namespace packages (no __init__.py): the
+``inventzia.pulse.data`` prefix is shared with the hand-written datum protocol
+in datum/python, so both source roots merge into one import namespace.
+
 Usage:
     python generate_python.py \\
-        --schemas-dir ../schemas_yaml \\
-        --output-dir  ../schemas_py
+        --schemas-dir  ../schemas_yaml \\
+        --output-dir   ../schemas_py \\
+        --base-package inventzia.pulse.data.schemas
 
     # Dry run:
     python generate_python.py --schemas-dir ../schemas_yaml --dry-run -v
@@ -51,6 +63,21 @@ _HEADER = """\
 #
 # THIS FILE IS GENERATED. DO NOT EDIT MANUALLY.
 # Source: {schema_rel}
+# Regenerate: python schemas/schemas-generators/generate_python.py"""
+
+_REGISTRY_HEADER = """\
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Inventzia-Commercial
+# Copyright (c) 2013-2026 Magrino Bini, Paola Apruzzese, Inventzia Science and Technology Ltd.
+#
+# This file is part of pulse-data.
+#
+# pulse-data is dual-licensed:
+#   - Under the GNU Affero General Public License v3.0 or later (see LICENSE-AGPL-3.0).
+#   - Under a commercial license (see LICENSE-COMMERCIAL.txt).
+#     Contact operations@inventzia.com.
+#
+# THIS FILE IS GENERATED. DO NOT EDIT MANUALLY.
+# Source: all schemas under schemas_yaml/
 # Regenerate: python schemas/schemas-generators/generate_python.py"""
 
 # ---------------------------------------------------------------------------
@@ -91,7 +118,8 @@ def _snake(name: str) -> str:
 # ---------------------------------------------------------------------------
 
 def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
-                   dry_run: bool, verbose: bool) -> bool:
+                   base_package: str, dry_run: bool, verbose: bool) -> dict | None:
+    """Generate one model. Returns metadata for the registry, or None on skip."""
     with open(schema_path, encoding="utf-8") as f:
         schema = yaml.safe_load(f)
 
@@ -103,7 +131,7 @@ def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
 
     if not title:
         print(f"  ⚠  Skipping {schema_path.name}: no 'title' field", file=sys.stderr)
-        return False
+        return None
 
     datum_key_field  = None   # python field name for routing key
     datum_time_field = None   # python field name for routing time
@@ -117,7 +145,7 @@ def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
 
     if not datum_key_field or not datum_time_field:
         print(f"  ⚠  {schema_path.name}: missing x-datum-key or x-datum-time", file=sys.stderr)
-        return False
+        return None
 
     # Collect imports
     imports_from: dict[str, set[str]] = {}
@@ -141,10 +169,12 @@ def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
         desc = fprop.get("description", "").strip().rstrip(".")
         fields.append((fname, py_fname, py_t, is_required, desc))
 
-    # Determine output path (mirrors directory structure of schema)
-    rel         = schema_path.relative_to(schemas_root)
-    subdir      = rel.parent
-    output_file = output_root / subdir / f"{_snake(title)}.py"
+    # Derive package + output path (mirrors directory structure under base package)
+    rel          = schema_path.relative_to(schemas_root)
+    subpkg_parts = list(rel.parent.parts)          # e.g. ["marketdata"]
+    package      = ".".join([base_package, *subpkg_parts]) if subpkg_parts else base_package
+    module       = _snake(title)
+    output_file  = output_root / Path(*package.split(".")) / f"{module}.py"
 
     # ---------------------------------------------------------------------------
     # Render
@@ -205,6 +235,7 @@ def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
     lines.append(f'')
 
     source = "\n".join(lines)
+    meta = {"type_id": schema_id, "package": package, "module": module, "class_name": title}
 
     if dry_run:
         if verbose:
@@ -214,22 +245,60 @@ def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
             print(source)
         else:
             print(f"  {schema_path.name}  →  {output_file.relative_to(output_root)}")
-        return True
+        return meta
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(source, encoding="utf-8")
-
-    # Ensure __init__.py exists for each package directory
-    pkg_dir = output_file.parent
-    while pkg_dir != output_root:
-        init = pkg_dir / "__init__.py"
-        if not init.exists():
-            init.write_text("# generated\n", encoding="utf-8")
-        pkg_dir = pkg_dir.parent
-
+    # No __init__.py: the generated tree uses PEP 420 namespace packages so it
+    # merges with the datum protocol under the shared inventzia.pulse.data prefix.
     if verbose:
         print(f"  ✅  {schema_path.name}  →  {output_file.relative_to(output_root)}")
-    return True
+    return meta
+
+
+def generate_registry(models: list[dict], output_root: Path, base_package: str,
+                      dry_run: bool, verbose: bool) -> None:
+    """Emit registry.py: TYPE_ID -> model class (mirror of Java DatumTypeRegistry)."""
+    models = sorted(models, key=lambda m: m["class_name"])
+    lines = [_REGISTRY_HEADER, ""]
+    lines.append('"""Self-describing decode support: TYPE_ID -> generated model class."""')
+    lines.append("")
+    for m in models:
+        lines.append(f'from {m["package"]}.{m["module"]} import {m["class_name"]}')
+    lines.append("")
+    lines.append("")
+    lines.append("REGISTRY: dict[str, type] = {")
+    for m in models:
+        lines.append(f'    {m["class_name"]}.TYPE_ID: {m["class_name"]},')
+    lines.append("}")
+    lines.append("")
+    lines.append("")
+    lines.append("def class_for(type_id: str) -> type:")
+    lines.append('    """Return the model class registered for a TYPE_ID."""')
+    lines.append("    try:")
+    lines.append("        return REGISTRY[type_id]")
+    lines.append("    except KeyError:")
+    lines.append('        raise KeyError(f"Unknown TYPE_ID: {type_id!r}") from None')
+    lines.append("")
+    lines.append("")
+    lines.append("def type_id_of(datum) -> str:")
+    lines.append('    """Return the TYPE_ID of a datum instance."""')
+    lines.append("    return type(datum).TYPE_ID")
+    lines.append("")
+
+    source = "\n".join(lines)
+    registry_file = output_root / Path(*base_package.split(".")) / "registry.py"
+
+    if dry_run:
+        print(f"  registry  →  {registry_file.relative_to(output_root)} ({len(models)} types)")
+        if verbose:
+            print(source)
+        return
+
+    registry_file.parent.mkdir(parents=True, exist_ok=True)
+    registry_file.write_text(source, encoding="utf-8")
+    if verbose:
+        print(f"  ✅  registry  →  {registry_file.relative_to(output_root)} ({len(models)} types)")
 
 
 # ---------------------------------------------------------------------------
@@ -239,8 +308,10 @@ def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--schemas-dir", default="../schemas_yaml")
-    parser.add_argument("--output-dir",  default="../schemas_py")
+    parser.add_argument("--schemas-dir",  default="../schemas_yaml")
+    parser.add_argument("--output-dir",   default="../schemas_py")
+    parser.add_argument("--base-package", default="inventzia.pulse.data.schemas",
+                        help="Base Python package for all generated models")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
@@ -258,14 +329,20 @@ def main() -> int:
         return 0
 
     print(f"{'[dry-run] ' if args.dry_run else ''}Generating Python models from {schemas_root}")
-    ok = fail = 0
+    models: list[dict] = []
+    fail = 0
     for sf in schema_files:
-        if generate_model(sf, schemas_root, output_root, args.dry_run, args.verbose):
-            ok += 1
+        meta = generate_model(sf, schemas_root, output_root,
+                              args.base_package, args.dry_run, args.verbose)
+        if meta:
+            models.append(meta)
         else:
             fail += 1
 
-    print(f"\n{'✅' if fail == 0 else '⚠ '} {ok} generated" +
+    if models:
+        generate_registry(models, output_root, args.base_package, args.dry_run, args.verbose)
+
+    print(f"\n{'✅' if fail == 0 else '⚠ '} {len(models)} generated" +
           (f", {fail} skipped/failed" if fail else ""))
     return 0 if fail == 0 else 1
 

@@ -11,11 +11,16 @@
  */
 package com.inventzia.pulse.data.datum;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.inventzia.pulse.data.schemas.DatumTypeRegistry;
 
 /**
  * The canonical JSON serializer for pulse-data {@link Datum} types.
@@ -55,6 +60,12 @@ public final class DatumCodec {
                 .addModule(new JavaTimeModule())
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                // Serialize only the explicitly annotated record components. Without
+                // this, Jackson would auto-detect the Datum accessors getDatumKey()/
+                // getDatumTime() as extra "datumKey"/"datumTime" properties — bloating
+                // the wire and breaking Python decode (its models are extra='forbid').
+                .visibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE)
+                .visibility(PropertyAccessor.IS_GETTER, JsonAutoDetect.Visibility.NONE)
                 .build();
     }
 
@@ -89,6 +100,63 @@ public final class DatumCodec {
         } catch (JsonProcessingException e) {
             throw new DatumCodecException(
                     "Failed to deserialize " + type.getName() + " from: " + json, e);
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Self-describing (tagged) form
+    //
+    // The type-directed methods above need the caller to know the class.
+    // The tagged form embeds the TYPE_ID in a small envelope, so a receiver
+    // can recover the type from the message itself — required wherever the
+    // type is not known ahead of time (the cross-language bridge, and later
+    // the socket/ZMQ transport). The class is resolved through the generated
+    // {@link DatumTypeRegistry}.
+    // ------------------------------------------------------------------
+
+    private static final String FIELD_TYPE_ID = "typeId";
+    private static final String FIELD_PAYLOAD = "payload";
+
+    /**
+     * Serializes a datum to a self-describing envelope:
+     * {@code {"typeId": "<TYPE_ID>", "payload": { ...fields... }}}.
+     *
+     * @param datum the datum to serialize
+     * @return its tagged JSON representation
+     * @throws DatumCodecException if serialization fails
+     */
+    public String toTaggedJson(Datum datum) {
+        ObjectNode envelope = mapper.createObjectNode();
+        envelope.put(FIELD_TYPE_ID, DatumTypeRegistry.typeIdOf(datum));
+        envelope.set(FIELD_PAYLOAD, mapper.valueToTree(datum));
+        try {
+            return mapper.writeValueAsString(envelope);
+        } catch (JsonProcessingException e) {
+            throw new DatumCodecException(
+                    "Failed to serialize tagged " + datum.getClass().getName(), e);
+        }
+    }
+
+    /**
+     * Deserializes a self-describing envelope produced by {@link #toTaggedJson},
+     * recovering the concrete type from its {@code typeId} via the registry.
+     *
+     * @param json the tagged JSON to read
+     * @return the deserialized datum
+     * @throws DatumCodecException if the envelope is malformed or deserialization fails
+     */
+    public Datum fromTaggedJson(String json) {
+        try {
+            JsonNode envelope = mapper.readTree(json);
+            JsonNode typeIdNode = envelope.get(FIELD_TYPE_ID);
+            if (typeIdNode == null || !typeIdNode.isTextual()) {
+                throw new DatumCodecException(
+                        "Tagged JSON missing textual '" + FIELD_TYPE_ID + "': " + json);
+            }
+            Class<? extends Datum> type = DatumTypeRegistry.classFor(typeIdNode.asText());
+            return mapper.treeToValue(envelope.get(FIELD_PAYLOAD), type);
+        } catch (JsonProcessingException e) {
+            throw new DatumCodecException("Failed to deserialize tagged datum from: " + json, e);
         }
     }
 }

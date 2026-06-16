@@ -95,7 +95,8 @@ def _camel(name: str) -> str:
 # ---------------------------------------------------------------------------
 
 def generate_record(schema_path: Path, schemas_root: Path, output_root: Path,
-                    base_package: str, dry_run: bool, verbose: bool) -> bool:
+                    base_package: str, dry_run: bool, verbose: bool) -> dict | None:
+    """Generate one record. Returns metadata for the registry, or None on skip."""
     with open(schema_path, encoding="utf-8") as f:
         schema = yaml.safe_load(f)
 
@@ -107,7 +108,7 @@ def generate_record(schema_path: Path, schemas_root: Path, output_root: Path,
 
     if not title:
         print(f"  ⚠  Skipping {schema_path.name}: no 'title' field", file=sys.stderr)
-        return False
+        return None
 
     # Derive sub-package from path relative to schemas root
     rel = schema_path.relative_to(schemas_root)
@@ -128,7 +129,7 @@ def generate_record(schema_path: Path, schemas_root: Path, output_root: Path,
     if not datum_key_field or not datum_time_field:
         print(f"  ⚠  {schema_path.name}: missing x-datum-key or x-datum-time annotation",
               file=sys.stderr)
-        return False
+        return None
 
     # Build record components and collect imports
     components = []
@@ -199,6 +200,7 @@ def generate_record(schema_path: Path, schemas_root: Path, output_root: Path,
     lines.append("")
 
     source = "\n".join(lines)
+    meta = {"type_id": schema_id, "package": package, "class_name": class_name}
 
     if dry_run:
         if verbose:
@@ -208,13 +210,93 @@ def generate_record(schema_path: Path, schemas_root: Path, output_root: Path,
             print(source)
         else:
             print(f"  {schema_path.name}  →  {output_file.relative_to(output_root)}")
-        return True
+        return meta
 
     output_file.parent.mkdir(parents=True, exist_ok=True)
     output_file.write_text(source, encoding="utf-8")
     if verbose:
         print(f"  ✅  {schema_path.name}  →  {output_file.relative_to(output_root)}")
-    return True
+    return meta
+
+
+def generate_registry(models: list[dict], output_root: Path, base_package: str,
+                      dry_run: bool, verbose: bool) -> None:
+    """Emit DatumTypeRegistry.java: TYPE_ID <-> Class, code-generated and exhaustive."""
+    models = sorted(models, key=lambda m: m["class_name"])
+    registry_pkg = base_package          # com.inventzia.pulse.data.schemas
+    schema_rel = "all schemas under schemas_yaml/"
+
+    lines = [_HEADER.format(schema_rel=schema_rel), ""]
+    lines.append(f"package {registry_pkg};")
+    lines.append("")
+    lines.append("import com.inventzia.pulse.data.datum.Datum;")
+    for m in models:
+        lines.append(f'import {m["package"]}.{m["class_name"]};')
+    lines.append("import java.util.Map;")
+    lines.append("import java.util.Set;")
+    lines.append("")
+    lines.append("/**")
+    lines.append(" * Generated registry mapping each {@code TYPE_ID} to its generated")
+    lines.append(" * {@link Datum} class (and back), so {@code DatumCodec} can deserialize a")
+    lines.append(" * self-describing tagged envelope without being told the type in advance.")
+    lines.append(" *")
+    lines.append(" * <p>The modern form of the old hand-maintained datum-id factory: generated")
+    lines.append(" * from the same YAML as the records, so it stays exhaustive automatically.")
+    lines.append(" */")
+    lines.append("public final class DatumTypeRegistry {")
+    lines.append("")
+    lines.append("    private DatumTypeRegistry() {")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    private static final Map<String, Class<? extends Datum>> BY_ID = Map.ofEntries(")
+    by_id = [f'            Map.entry({m["class_name"]}.TYPE_ID, {m["class_name"]}.class)' for m in models]
+    lines.append(",\n".join(by_id))
+    lines.append("    );")
+    lines.append("")
+    lines.append("    private static final Map<Class<? extends Datum>, String> BY_CLASS = Map.ofEntries(")
+    by_class = [f'            Map.entry({m["class_name"]}.class, {m["class_name"]}.TYPE_ID)' for m in models]
+    lines.append(",\n".join(by_class))
+    lines.append("    );")
+    lines.append("")
+    lines.append("    /** @return the generated class registered for a {@code TYPE_ID}. */")
+    lines.append("    public static Class<? extends Datum> classFor(String typeId) {")
+    lines.append("        Class<? extends Datum> type = BY_ID.get(typeId);")
+    lines.append("        if (type == null) {")
+    lines.append('            throw new IllegalArgumentException("Unknown TYPE_ID: " + typeId);')
+    lines.append("        }")
+    lines.append("        return type;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    /** @return the {@code TYPE_ID} for a datum instance. */")
+    lines.append("    public static String typeIdOf(Datum datum) {")
+    lines.append("        String typeId = BY_CLASS.get(datum.getClass());")
+    lines.append("        if (typeId == null) {")
+    lines.append('            throw new IllegalArgumentException(')
+    lines.append('                    "Unregistered datum type: " + datum.getClass().getName());')
+    lines.append("        }")
+    lines.append("        return typeId;")
+    lines.append("    }")
+    lines.append("")
+    lines.append("    /** @return all registered TYPE_IDs. */")
+    lines.append("    public static Set<String> typeIds() {")
+    lines.append("        return BY_ID.keySet();")
+    lines.append("    }")
+    lines.append("}")
+    lines.append("")
+
+    source = "\n".join(lines)
+    registry_file = output_root / Path(*registry_pkg.split(".")) / "DatumTypeRegistry.java"
+
+    if dry_run:
+        print(f"  registry  →  {registry_file.relative_to(output_root)} ({len(models)} types)")
+        if verbose:
+            print(source)
+        return
+
+    registry_file.parent.mkdir(parents=True, exist_ok=True)
+    registry_file.write_text(source, encoding="utf-8")
+    if verbose:
+        print(f"  ✅  registry  →  {registry_file.relative_to(output_root)} ({len(models)} types)")
 
 
 # ---------------------------------------------------------------------------
@@ -248,15 +330,20 @@ def main() -> int:
         return 0
 
     print(f"{'[dry-run] ' if args.dry_run else ''}Generating Java records from {schemas_root}")
-    ok = fail = 0
+    models: list[dict] = []
+    fail = 0
     for sf in schema_files:
-        if generate_record(sf, schemas_root, output_root,
-                           args.base_package, args.dry_run, args.verbose):
-            ok += 1
+        meta = generate_record(sf, schemas_root, output_root,
+                               args.base_package, args.dry_run, args.verbose)
+        if meta:
+            models.append(meta)
         else:
             fail += 1
 
-    print(f"\n{'✅' if fail == 0 else '⚠ '} {ok} generated" +
+    if models:
+        generate_registry(models, output_root, args.base_package, args.dry_run, args.verbose)
+
+    print(f"\n{'✅' if fail == 0 else '⚠ '} {len(models)} generated" +
           (f", {fail} skipped/failed" if fail else ""))
     return 0 if fail == 0 else 1
 

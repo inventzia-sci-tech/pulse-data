@@ -21,10 +21,11 @@ never the other way round.
 | Area | Path | What it is |
 |------|------|-----------|
 | Routing contract | `datum/` | Hand-written `Datum` interface (Java) and `Protocol` (Python). The stable API everything else conforms to. |
-| JSON serializer | `datum/` | `DatumCodec` — the canonical, shared serializer for `Datum` types (see below). |
+| JSON serializer | `datum/` | `DatumCodec` (Java) and `datum/codec.py` (Python) — the canonical, shared serializer for `Datum` types (see below). |
 | Schema sources | `schemas/schemas_yaml/` | YAML definitions — the single source of truth. |
-| Generated Java | `schemas/schemas_java/` | Immutable Java `record` classes. Build artefact; do not edit. |
-| Generated Python | `schemas/schemas_py/` | Pydantic v2 models. Build artefact; do not edit. |
+| Generated Java | `schemas/schemas_java/` | Immutable Java `record` classes under `com.inventzia.pulse.data.schemas`. Build artefact; do not edit. |
+| Generated Python | `schemas/schemas_py/` | Pydantic v2 models under `inventzia.pulse.data.schemas` (mirrors Java). Build artefact; do not edit. |
+| Type registry | both | Generated `DatumTypeRegistry` (Java) / `schemas/registry.py` (Python): `TYPE_ID → class`, for self-describing decode. |
 | Generators | `schemas/schemas-generators/` | `generate_java.py`, `generate_python.py`. |
 
 Everything here is light: the Java side compiles to a small jar (Jackson + JSpecify only); the
@@ -69,7 +70,8 @@ public record CdfBar(String symb, long timestamp, BigDecimal op /* ... */)
 }
 ```
 
-**Python** (`schemas_py/.../cdf_bar.py`) — a Pydantic v2 model satisfying the `Datum` protocol:
+**Python** (`schemas_py/inventzia/pulse/data/schemas/marketdata/cdf_bar.py`) — a Pydantic v2 model
+satisfying the `Datum` protocol:
 ```python
 class CdfBar(BaseModel):
     TYPE_ID:      ClassVar[str] = "com.inventzia.pulse.data.schemas.marketdata.CdfBar"
@@ -114,9 +116,14 @@ class CdfBar(BaseModel):
   never construct or pass a JSON mapper; downstream code (e.g. pulse-beacon's gateways) uses the
   singleton and never references Jackson.
 
-  > Today `fromJson` is type-directed (the caller supplies the target class). A self-describing
-  > `Datum fromJson(String)` backed by a generated `TYPE_ID → Class` registry will be added when
-  > the socket/ZMQ transport needs it.
+  Two forms are offered. **Type-directed** (`toJson` / `fromJson(json, Class)`) when the caller
+  knows the concrete class — e.g. it knows a topic's payload type. **Self-describing** (`toTaggedJson`
+  / `fromTaggedJson`) wraps the value in an envelope `{"typeId": "<TYPE_ID>", "payload": {…}}`, so a
+  receiver can recover the type from the message itself wherever it isn't known ahead of time — the
+  in-process cross-language bridge, and later the socket/ZMQ transport. The class is resolved through
+  a generated `TYPE_ID → class` registry (`DatumTypeRegistry` in Java, `schemas/registry.py` in
+  Python) — the modern, code-generated form of the old hand-maintained datum-id factory. The same
+  envelope is produced and consumed identically in both languages.
 
 - **Python uses structural typing.** The Python `Datum` is a `Protocol`; generated models satisfy
   it by exposing `datum_key` / `datum_time` properties — no inheritance, no import coupling.
