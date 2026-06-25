@@ -14,9 +14,9 @@
 
 """Self-describing decode support: TYPE_ID -> generated model class."""
 
-from inventzia.pulse.data.schemas.marketdata.cdf_bar import CdfBar
-from inventzia.pulse.data.schemas.platform.heart_beat import HeartBeat
-from inventzia.pulse.data.schemas.platform.text_message import TextMessage
+from schemas.schemas_py.inventzia.pulse.data.schemas.marketdata.cdf_bar import CdfBar
+from schemas.schemas_py.inventzia.pulse.data.schemas.platform.heart_beat import HeartBeat
+from schemas.schemas_py.inventzia.pulse.data.schemas.platform.text_message import TextMessage
 
 
 REGISTRY: dict[str, type] = {

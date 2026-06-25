@@ -10,7 +10,7 @@ in the `pulse-data` conda environment.
 Generates immutable Java `record` classes into `schemas/schemas_java/`.
 
 ```bash
-conda run -n pulse-data python generate_java.py \
+conda run -n pulse python generate_java.py \
   --schemas-dir ../schemas_yaml \
   --output-dir  ../schemas_java \
   --base-package com.inventzia.pulse.data.schemas \
@@ -26,7 +26,7 @@ Each record implements `com.inventzia.pulse.data.datum.Datum`, declares `TYPE_ID
 Generates Pydantic v2 models into `schemas/schemas_py/`.
 
 ```bash
-conda run -n pulse-data python generate_python.py \
+conda run -n pulse python generate_python.py \
   --schemas-dir ../schemas_yaml \
   --output-dir  ../schemas_py \
   -v

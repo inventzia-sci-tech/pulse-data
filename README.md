@@ -137,8 +137,8 @@ class CdfBar(BaseModel):
 2. Regenerate both bindings:
    ```bash
    cd schemas/schemas-generators
-   conda run -n pulse-data python generate_java.py
-   conda run -n pulse-data python generate_python.py
+   conda run -n pulse python generate_java.py
+   conda run -n pulse python generate_python.py
    ```
 3. Commit the YAML **and** the regenerated Java/Python output.
 
@@ -154,8 +154,11 @@ The Python generators run in the minimal conda environment defined by
 
 ```bash
 conda env create -f py_environment.yml
-conda activate pulse-data
+conda activate pulse
 ```
+
+This creates the shared `pulse` env (base layer). Working across the stack? pulse-beacon enriches
+the same env with a JDK + Maven + the JPype bridge — see its README.
 
 Java sources (the `Datum` interface and generated records) build with Maven via
 [`pom.xml`](./pom.xml); Java 17+.

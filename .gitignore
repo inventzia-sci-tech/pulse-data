@@ -3,3 +3,13 @@
 
 # Maven build output (any module depth)
 target/
+
+# Python bytecode caches
+__pycache__/
+*.py[cod]
+
+# IDE project metadata
+.idea/
+.project
+.classpath
+.settings/
