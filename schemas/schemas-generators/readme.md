@@ -3,7 +3,7 @@
 Two scripts generate strongly-typed data classes from the YAML schemas in
 `schemas/schemas_yaml/`. Both walk the schema tree recursively and mirror its directory
 structure into their output. Run them from this directory (`schemas/schemas-generators/`)
-in the `pulse-data` conda environment.
+in the shared `pulse` conda environment.
 
 ## Java — `generate_java.py`
 
@@ -21,6 +21,9 @@ Each record implements `com.inventzia.pulse.data.datum.Datum`, declares `TYPE_ID
 (equal to the schema `$id`) and `TYPE_VERSION`, and delegates `getDatumKey()` /
 `getDatumTime()` to the fields marked `x-datum-key` / `x-datum-time`.
 
+The script also emits a generated `DatumTypeRegistry` (a `TYPE_ID → Class` map) so the codec can
+resolve a type from a self-describing tagged JSON envelope on decode.
+
 ## Python — `generate_python.py`
 
 Generates Pydantic v2 models into `schemas/schemas_py/`.
@@ -35,6 +38,9 @@ conda run -n pulse python generate_python.py \
 Each model declares `TYPE_ID` / `TYPE_VERSION` as `ClassVar`s and exposes `datum_key` /
 `datum_time` properties, satisfying the `inventzia.pulse.data.datum.Datum` protocol
 structurally (no inheritance).
+
+The script also emits a generated `registry.py` (the `TYPE_ID → model` map), the Python mirror of
+`DatumTypeRegistry`, used to decode self-describing tagged JSON.
 
 ## Common options
 
