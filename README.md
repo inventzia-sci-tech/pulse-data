@@ -125,6 +125,16 @@ class CdfBar(BaseModel):
   Python) — the modern, code-generated form of the old hand-maintained datum-id factory. The same
   envelope is produced and consumed identically in both languages.
 
+- **Forward compatibility is symmetric across languages.** Both bindings tolerate unknown fields on
+  read, so a newer producer that adds a field does not break an older consumer in either language:
+  Java disables `FAIL_ON_UNKNOWN_PROPERTIES`, and generated Python models use
+  `model_config(extra="ignore")`. This only covers *additive* changes; removals, renames, and type
+  changes are breaking and must bump `TYPE_VERSION`, so evolution within a major version is
+  additive-only by discipline. Because "ignore" silently drops drift (it would hide, say, one side
+  emitting a field the other does not), a cross-language round-trip test
+  (`pulse-beacon .../tests/test_codec_cross_language_parity.py`) asserts the tagged envelope is
+  identical after a Java↔Python round-trip — the loud drift detector `extra="forbid"` used to give.
+
 - **Python uses structural typing.** The Python `Datum` is a `Protocol`; generated models satisfy
   it by exposing `datum_key` / `datum_time` properties — no inheritance, no import coupling.
 

@@ -22,7 +22,7 @@ class TextMessage(BaseModel):
     Generic carrier for a free-text string payload. The platform equivalent of a plain message — useful for diagnostics, echo/relay examples, and any actor or gateway that needs to move arbitrary text on a topic.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     TYPE_ID:      ClassVar[str] = "com.inventzia.pulse.data.schemas.platform.TextMessage"
     TYPE_VERSION: ClassVar[int] = 1

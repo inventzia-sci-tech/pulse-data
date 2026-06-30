@@ -15,7 +15,9 @@ Each generated class:
   - Lives under inventzia.pulse.data.schemas.<subpackage> (mirrors the Java
     package and the inventzia.pulse.data.datum protocol — one namespace, two
     languages)
-  - Extends pydantic.BaseModel with model_config(extra='forbid')
+  - Extends pydantic.BaseModel with model_config(extra='ignore') so unknown
+    fields from a newer producer are tolerated (forward compatibility, matching
+    the Java DatumCodec which disables FAIL_ON_UNKNOWN_PROPERTIES)
   - Declares TYPE_ID (equals the schema $id) and TYPE_VERSION as ClassVars
   - Implements datum_key and datum_time properties driven by x-datum-key /
     x-datum-time YAML annotations
@@ -194,7 +196,7 @@ def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
         lines.append(f'    {description}')
         lines.append(f'    """')
     lines.append(f'')
-    lines.append(f'    model_config = ConfigDict(extra="forbid")')
+    lines.append(f'    model_config = ConfigDict(extra="ignore")')
     lines.append(f'')
     lines.append(f'    TYPE_ID:      ClassVar[str] = "{schema_id}"')
     lines.append(f'    TYPE_VERSION: ClassVar[int] = 1')

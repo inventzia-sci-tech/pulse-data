@@ -22,7 +22,7 @@ class HeartBeat(BaseModel):
     Periodic platform heartbeat produced by HeartBeatGateway. Actors subscribe to a heartbeat Topic to implement periodic behaviour (analytics windows, timeout checks) that fires at regular simulation-time intervals regardless of whether domain events arrive in that interval.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     TYPE_ID:      ClassVar[str] = "com.inventzia.pulse.data.schemas.platform.HeartBeat"
     TYPE_VERSION: ClassVar[int] = 1
