@@ -36,6 +36,7 @@
         Contains the Datum routing interface and generated immutable record
         classes for all event types.
     </description>
+    <url>https://inventzia.com</url>
     <inceptionYear>2013</inceptionYear>
 
     <organization>
@@ -55,6 +56,25 @@
             <comments>Contact operations@inventzia.com</comments>
         </license>
     </licenses>
+
+    <developers>
+        <developer>
+            <name>Magrino Bini</name>
+            <email>operations@inventzia.com</email>
+            <organization>Inventzia Science and Technology Ltd.</organization>
+            <organizationUrl>https://inventzia.com</organizationUrl>
+        </developer>
+        <developer>
+            <name>Paola Apruzzese</name>
+            <email>operations@inventzia.com</email>
+            <organization>Inventzia Science and Technology Ltd.</organization>
+            <organizationUrl>https://inventzia.com</organizationUrl>
+        </developer>
+    </developers>
+
+    <!-- TODO(before Maven Central publish): add the real <scm> coordinates
+         (connection / developerConnection / url). Not required to build the
+         source and javadoc jars produced by the `release` profile below. -->
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -116,4 +136,50 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!--
+          Release: attach the source and javadoc jars Maven Central requires.
+          Opt-in (`mvn -Prelease ...`) so ordinary dev builds stay fast. GPG
+          signing and the central-publishing plugin are intentionally NOT here
+          yet — they are the actual-publish step (needs credentials); see
+          PackagingAndPublishingRelease.md §5.
+        -->
+        <profile>
+            <id>release</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals><goal>jar-no-fork</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.11.2</version>
+                        <configuration>
+                            <!-- Publish javadoc jars without failing on incomplete tags
+                                 (missing @param/@return). Central requires the jar to exist,
+                                 not doclint-perfect docs. -->
+                            <doclint>none</doclint>
+                            <quiet>true</quiet>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals><goal>jar</goal></goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

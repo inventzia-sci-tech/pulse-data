@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Inventzia-Commercial
+# Copyright (c) 2013-2026 Magrino Bini, Paola Apruzzese, Inventzia Science and Technology Ltd.
+#
+# This file is part of pulse-data.
+#
+# pulse-data is dual-licensed:
+#   - Under the GNU Affero General Public License v3.0 or later (see LICENSE-AGPL-3.0).
+#   - Under a commercial license (see LICENSE-COMMERCIAL.txt).
+#     Contact operations@inventzia.com.
+
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pulse-data"
+version = "0.1.0"
+description = "YAML-sourced data schemas and the Datum routing contract for the Pulse platform (one namespace, Java + Python)."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "AGPL-3.0-or-later OR LicenseRef-Inventzia-Commercial"
+license-files = ["LICENSE-AGPL-3.0", "LICENSE-COMMERCIAL.txt", "NOTICE"]
+authors = [
+    { name = "Magrino Bini", email = "operations@inventzia.com" },
+    { name = "Paola Apruzzese", email = "operations@inventzia.com" },
+]
+maintainers = [
+    { name = "Inventzia Science and Technology Ltd.", email = "operations@inventzia.com" },
+]
+keywords = ["pulse", "schemas", "pydantic", "algorithmic-trading", "event-driven"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Operating System :: OS Independent",
+]
+
+# Runtime: only Pydantic. The generator toolchain is a dev-time extra (see below).
+dependencies = [
+    "pydantic>=2,<3",
+]
+
+[project.optional-dependencies]
+# `pip install pulse-data[generator]` — needed only to regenerate models from YAML.
+generator = [
+    "pyyaml>=6",
+    "datamodel-code-generator>=0.25",
+]
+
+[project.urls]
+Homepage = "https://inventzia.com"
+
+# ---------------------------------------------------------------------------
+# src/ layout with PEP 420 namespace packages. There is deliberately no
+# __init__.py at inventzia/ or inventzia/pulse/ so that pulse-data and
+# pulse-beacon can each own a subtree of the shared inventzia.pulse.* namespace
+# and install side by side without shadowing one another.
+# ---------------------------------------------------------------------------
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["inventzia*"]
+namespaces = true

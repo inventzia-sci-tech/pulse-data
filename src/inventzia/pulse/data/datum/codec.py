@@ -33,7 +33,7 @@ The tagged envelope is identical to the Java side::
 import json
 from typing import TypeVar
 
-from schemas.schemas_py.inventzia.pulse.data.schemas.registry import class_for, type_id_of
+from inventzia.pulse.data.schemas.registry import class_for, type_id_of
 
 _FIELD_TYPE_ID = "typeId"
 _FIELD_PAYLOAD = "payload"

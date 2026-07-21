@@ -13,3 +13,6 @@ __pycache__/
 .project
 .classpath
 .settings/
+/dist/
+/build/
+*.egg-info/

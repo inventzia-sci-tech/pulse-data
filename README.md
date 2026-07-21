@@ -24,8 +24,8 @@ never the other way round.
 | JSON serializer | `datum/` | `DatumCodec` (Java) and `datum/codec.py` (Python) — the canonical, shared serializer for `Datum` types (see below). |
 | Schema sources | `schemas/schemas_yaml/` | YAML definitions — the single source of truth. |
 | Generated Java | `schemas/schemas_java/` | Immutable Java `record` classes under `com.inventzia.pulse.data.schemas`. Build artefact; do not edit. |
-| Generated Python | `schemas/schemas_py/` | Pydantic v2 models under `inventzia.pulse.data.schemas` (mirrors Java). Build artefact; do not edit. |
-| Type registry | both | Generated `DatumTypeRegistry` (Java) / `schemas/registry.py` (Python): `TYPE_ID → class`, for self-describing decode. |
+| Generated Python | `src/inventzia/pulse/data/schemas/` | Pydantic v2 models under `inventzia.pulse.data.schemas` (mirrors Java), in the installable `src/` tree. Build artefact; do not edit. |
+| Type registry | both | Generated `DatumTypeRegistry` (Java) / `src/inventzia/pulse/data/schemas/registry.py` (Python): `TYPE_ID → class`, for self-describing decode. |
 | Generators | `schemas/schemas-generators/` | `generate_java.py`, `generate_python.py`. |
 
 Everything here is light: the Java side compiles to a small jar (Jackson + JSpecify only); the
@@ -70,7 +70,7 @@ public record CdfBar(String symb, long timestamp, BigDecimal op /* ... */)
 }
 ```
 
-**Python** (`schemas_py/inventzia/pulse/data/schemas/marketdata/cdf_bar.py`) — a Pydantic v2 model
+**Python** (`src/inventzia/pulse/data/schemas/marketdata/cdf_bar.py`) — a Pydantic v2 model
 satisfying the `Datum` protocol:
 ```python
 class CdfBar(BaseModel):

@@ -31,14 +31,18 @@ The output tree uses PEP 420 namespace packages (no __init__.py): the
 ``inventzia.pulse.data`` prefix is shared with the hand-written datum protocol
 in datum/python, so both source roots merge into one import namespace.
 
-Usage:
+Usage (defaults are script-relative and regenerate the installable tree at
+pulse-data/src/inventzia/pulse/data/schemas/, so this works from any directory):
+    python generate_python.py
+
+    # Explicit (equivalent to the defaults):
     python generate_python.py \\
-        --schemas-dir  ../schemas_yaml \\
-        --output-dir   ../schemas_py \\
+        --schemas-dir  <pulse-data>/schemas/schemas_yaml \\
+        --output-dir   <pulse-data>/src \\
         --base-package inventzia.pulse.data.schemas
 
     # Dry run:
-    python generate_python.py --schemas-dir ../schemas_yaml --dry-run -v
+    python generate_python.py --dry-run -v
 """
 
 import argparse
@@ -47,6 +51,15 @@ import sys
 from pathlib import Path
 
 import yaml
+
+# ---------------------------------------------------------------------------
+# Script-relative defaults: input YAML lives next to this generator, output goes
+# to the installable src/ tree — so `python generate_python.py` regenerates the
+# canonical location from any working directory (not the removed schemas_py/).
+# ---------------------------------------------------------------------------
+_HERE = Path(__file__).resolve().parent                  # .../schemas/schemas-generators
+_DEFAULT_SCHEMAS_DIR = _HERE.parent / "schemas_yaml"     # .../schemas/schemas_yaml
+_DEFAULT_OUTPUT_DIR = _HERE.parent.parent / "src"        # .../pulse-data/src
 
 # ---------------------------------------------------------------------------
 # License / generation header
@@ -310,8 +323,10 @@ def generate_registry(models: list[dict], output_root: Path, base_package: str,
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__,
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--schemas-dir",  default="../schemas_yaml")
-    parser.add_argument("--output-dir",   default="../schemas_py")
+    parser.add_argument("--schemas-dir",  default=str(_DEFAULT_SCHEMAS_DIR))
+    parser.add_argument("--output-dir",   default=str(_DEFAULT_OUTPUT_DIR),
+                        help="Root of the installable tree; models go under "
+                             "<output-dir>/inventzia/pulse/data/schemas/")
     parser.add_argument("--base-package", default="inventzia.pulse.data.schemas",
                         help="Base Python package for all generated models")
     parser.add_argument("--dry-run", action="store_true")

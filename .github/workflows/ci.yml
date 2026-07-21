@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  # Finding 4-adjacent: the Java build must succeed from a clean Maven environment.
+  maven:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Maven verify (clean env, no local staging)
+        run: mvn -B -ntp verify
+
+  # Finding 1 + 5: the wheel installs into a clean env, the documented public imports
+  # resolve, and regeneration stays diff-clean with public-namespace imports.
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build wheel
+        run: |
+          python -m pip install --upgrade build
+          python -m build --wheel
+
+      - name: Clean-install and documented imports (from a neutral cwd)
+        run: |
+          python -m venv /tmp/venv
+          /tmp/venv/bin/pip install dist/*.whl
+          cd /tmp
+          /tmp/venv/bin/python -c "
+          from inventzia.pulse.data.datum import Datum, to_tagged_json, from_tagged_json
+          from inventzia.pulse.data.schemas.platform.heart_beat import HeartBeat
+          hb = HeartBeat(beatKey='BEAT', beatTime=1000)
+          assert from_tagged_json(to_tagged_json(hb)) == hb
+          print('clean-install import + codec roundtrip OK')
+          "
+
+      - name: Namespace guard (no shared-prefix __init__.py in the wheel)
+        run: |
+          python - <<'PY'
+          import glob, zipfile
+          whl = sorted(glob.glob("dist/*.whl"))[-1]
+          bad = [n for n in zipfile.ZipFile(whl).namelist()
+                 if n in ("inventzia/__init__.py", "inventzia/pulse/__init__.py")]
+          assert not bad, f"shared-prefix __init__.py present (breaks co-install): {bad}"
+          print("PEP 420 namespace OK")
+          PY
+
+      - name: Regeneration drift + public imports
+        run: |
+          python -m pip install pyyaml
+          python schemas/schemas-generators/generate_python.py --output-dir /tmp/regen
+          diff -r -x __pycache__ /tmp/regen/inventzia/pulse/data/schemas src/inventzia/pulse/data/schemas
+          if grep -rqE "from (datum\.python|schemas\.schemas_py|core\.python)\." /tmp/regen; then
+            echo "::error::generator emitted repo-root-prefixed imports (must be public inventzia.*)"
+            exit 1
+          fi
+          echo "regeneration is diff-clean with public-namespace imports"
