@@ -74,14 +74,19 @@ _TYPES = {
 }
 
 
-def _java_type(prop: dict, required: bool) -> tuple[str, str | None]:
-    """Return (java-type-string, import-or-None) for a property."""
+def _java_type(prop: dict, required: bool) -> tuple[str, list[str]]:
+    """Return (java-type-string, [imports]) for a property."""
     t   = prop.get("type", "string")
     fmt = prop.get("format")
+    if t == "array":
+        item = prop.get("items", {})
+        _, iimp, iboxed = _TYPES.get((item.get("type", "string"), item.get("format")),
+                                     _TYPES.get((item.get("type", "string"), None), ("String", None, "String")))
+        # A List<boxed-element>; the List itself is nullable when the field is optional.
+        return f"List<{iboxed}>", ["java.util.List"] + ([iimp] if iimp else [])
     primitive, imp, boxed = _TYPES.get((t, fmt), _TYPES.get((t, None), ("String", None, "String")))
-    if required:
-        return primitive, imp
-    return boxed, imp   # nullable: use boxed type, Jackson handles null via @JsonInclude(NON_NULL)
+    java_t = primitive if required else boxed   # nullable: boxed type (Jackson handles null via NON_NULL)
+    return java_t, ([imp] if imp else [])
 
 
 def _camel(name: str) -> str:
@@ -131,6 +136,10 @@ def generate_record(schema_path: Path, schemas_root: Path, output_root: Path,
               file=sys.stderr)
         return None
 
+    # Parallel-array constraints (x-parallel-to): enforced in the compact constructor.
+    parallels = [(_camel(fn), _camel(fp["x-parallel-to"]))
+                 for fn, fp in properties.items() if fp.get("x-parallel-to")]
+
     # Build record components and collect imports
     components = []
     imports    = set()
@@ -140,9 +149,8 @@ def generate_record(schema_path: Path, schemas_root: Path, output_root: Path,
 
     for fname, fprop in properties.items():
         is_required = fname in required
-        java_t, imp = _java_type(fprop, is_required)
-        if imp:
-            imports.add(imp)
+        java_t, imps = _java_type(fprop, is_required)
+        imports.update(imps)
         java_name = _camel(fname)
         desc      = fprop.get("description", "").strip().rstrip(".")
         components.append((fname, java_name, java_t, desc))
@@ -191,6 +199,15 @@ def generate_record(schema_path: Path, schemas_root: Path, output_root: Path,
     lines.append(",\n".join(comp_lines))
     lines.append(f") implements Datum {{")
     lines.append("")
+    if parallels:
+        lines.append(f"    public {class_name} {{")
+        for pf, pt in parallels:
+            lines.append(f"        if ({pf} != null && {pt} != null && {pf}.size() != {pt}.size()) {{")
+            lines.append(f"            throw new IllegalArgumentException(")
+            lines.append(f'                "{pf} length (" + {pf}.size() + ") must equal {pt} length (" + {pt}.size() + ")");')
+            lines.append(f"        }}")
+        lines.append(f"    }}")
+        lines.append("")
     lines.append(f"    public static final String TYPE_ID      = \"{schema_id}\";")
     lines.append(f"    public static final int    TYPE_VERSION = 1;")
     lines.append("")

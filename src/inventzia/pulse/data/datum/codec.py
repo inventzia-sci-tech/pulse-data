@@ -42,8 +42,12 @@ T = TypeVar("T")
 
 
 def to_json(datum) -> str:
-    """Serialise a datum to a single-line JSON string (flat, field names = wire names)."""
-    return datum.model_dump_json(by_alias=True)
+    """Serialise a datum to a single-line JSON string (flat, field names = wire names).
+
+    ``exclude_none=True`` omits absent optional fields, matching the Java codec's
+    ``@JsonInclude(NON_NULL)`` so the two languages produce identical envelopes.
+    """
+    return datum.model_dump_json(by_alias=True, exclude_none=True)
 
 
 def from_json(json_str: str, model_class: type[T]) -> T:
@@ -53,7 +57,7 @@ def from_json(json_str: str, model_class: type[T]) -> T:
 
 def to_tagged_json(datum) -> str:
     """Serialise a datum to the self-describing envelope ``{"typeId", "payload"}``."""
-    payload = json.loads(datum.model_dump_json(by_alias=True))
+    payload = json.loads(datum.model_dump_json(by_alias=True, exclude_none=True))
     return json.dumps({_FIELD_TYPE_ID: type_id_of(datum), _FIELD_PAYLOAD: payload})
 
 

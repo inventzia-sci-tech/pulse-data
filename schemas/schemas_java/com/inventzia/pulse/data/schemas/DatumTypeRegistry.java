@@ -20,6 +20,7 @@ import com.inventzia.pulse.data.datum.Datum;
 import com.inventzia.pulse.data.schemas.marketdata.CdfBar;
 import com.inventzia.pulse.data.schemas.platform.HeartBeat;
 import com.inventzia.pulse.data.schemas.platform.TextMessage;
+import com.inventzia.pulse.data.schemas.common.VectorValue;
 import java.util.Map;
 import java.util.Set;
 
@@ -39,13 +40,15 @@ public final class DatumTypeRegistry {
     private static final Map<String, Class<? extends Datum>> BY_ID = Map.ofEntries(
             Map.entry(CdfBar.TYPE_ID, CdfBar.class),
             Map.entry(HeartBeat.TYPE_ID, HeartBeat.class),
-            Map.entry(TextMessage.TYPE_ID, TextMessage.class)
+            Map.entry(TextMessage.TYPE_ID, TextMessage.class),
+            Map.entry(VectorValue.TYPE_ID, VectorValue.class)
     );
 
     private static final Map<Class<? extends Datum>, String> BY_CLASS = Map.ofEntries(
             Map.entry(CdfBar.class, CdfBar.TYPE_ID),
             Map.entry(HeartBeat.class, HeartBeat.TYPE_ID),
-            Map.entry(TextMessage.class, TextMessage.TYPE_ID)
+            Map.entry(TextMessage.class, TextMessage.TYPE_ID),
+            Map.entry(VectorValue.class, VectorValue.TYPE_ID)
     );
 
     /** @return the generated class registered for a {@code TYPE_ID}. */

@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Inventzia-Commercial
+# Copyright (c) 2013-2026 Magrino Bini, Paola Apruzzese, Inventzia Science and Technology Ltd.
+#
+# This file is part of pulse-data.
+#
+# pulse-data is dual-licensed:
+#   - Under the GNU Affero General Public License v3.0 or later (see LICENSE-AGPL-3.0).
+#   - Under a commercial license (see LICENSE-COMMERCIAL.txt).
+#     Contact operations@inventzia.com.
+
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: "com.inventzia.pulse.data.schemas.common.VectorValue"
+title: VectorValue
+description: >-
+  A generic timestamped vector of scalar observations, optionally labelled. A
+  scalar value is simply the length-1 case. Suited to indicators that emit M
+  components per timestamp (e.g. MACD -> [macd, signal, histogram]).
+type: object
+
+properties:
+
+  key:
+    type: string
+    description: The series or observation-source identifier.
+    x-datum-key: true                    # routing key
+
+  time:
+    type: integer
+    format: int64
+    description: Epoch milliseconds of the observation.
+    x-datum-time: true                   # routing time
+
+  values:
+    type: array
+    items:
+      type: number
+      format: decimal
+    description: The M scalar observations (length 1 for a scalar value).
+
+  valueIds:
+    type: array
+    items:
+      type: string
+    description: Optional labels, parallel to values (positional if absent).
+    x-parallel-to: values                # generator enforces len(valueIds) == len(values)
+
+required:
+  - key
+  - time
+  - values

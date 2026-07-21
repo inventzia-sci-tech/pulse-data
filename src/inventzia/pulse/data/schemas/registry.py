@@ -17,12 +17,14 @@
 from inventzia.pulse.data.schemas.marketdata.cdf_bar import CdfBar
 from inventzia.pulse.data.schemas.platform.heart_beat import HeartBeat
 from inventzia.pulse.data.schemas.platform.text_message import TextMessage
+from inventzia.pulse.data.schemas.common.vector_value import VectorValue
 
 
 REGISTRY: dict[str, type] = {
     CdfBar.TYPE_ID: CdfBar,
     HeartBeat.TYPE_ID: HeartBeat,
     TextMessage.TYPE_ID: TextMessage,
+    VectorValue.TYPE_ID: VectorValue,
 }
 
 

@@ -13,14 +13,21 @@ package com.inventzia.pulse.data.datum;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
+import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.inventzia.pulse.data.schemas.DatumTypeRegistry;
+
+import java.io.IOException;
+import java.math.BigDecimal;
 
 /**
  * The canonical JSON serializer for pulse-data {@link Datum} types.
@@ -56,8 +63,22 @@ public final class DatumCodec {
     private final JsonMapper mapper;
 
     private DatumCodec() {
+        // Write BigDecimal as a JSON string (not a number), so exact decimals survive
+        // the cross-language boundary: Python (Pydantic) also serializes Decimal as a
+        // string, and a JSON number would risk float rounding. Jackson's default
+        // BigDecimal deserializer already reads strings back, so no custom reader is needed.
+        SimpleModule decimalAsString = new SimpleModule().addSerializer(
+                BigDecimal.class, new JsonSerializer<BigDecimal>() {
+                    @Override
+                    public void serialize(BigDecimal value, JsonGenerator gen, SerializerProvider sp)
+                            throws IOException {
+                        gen.writeString(value.toPlainString());
+                    }
+                });
+
         this.mapper = JsonMapper.builder()
                 .addModule(new JavaTimeModule())
+                .addModule(decimalAsString)
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 // Serialize only the explicitly annotated record components. Without

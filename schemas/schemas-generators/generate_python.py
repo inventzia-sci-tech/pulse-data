@@ -115,7 +115,13 @@ _TYPES = {
 def _py_type(prop: dict, required: bool) -> tuple[str, tuple | None]:
     t   = prop.get("type", "string")
     fmt = prop.get("format")
-    py_t, imp = _TYPES.get((t, fmt), _TYPES.get((t, None), ("str", None)))
+    if t == "array":
+        item = prop.get("items", {})
+        py_it, imp = _TYPES.get((item.get("type", "string"), item.get("format")),
+                                _TYPES.get((item.get("type", "string"), None), ("str", None)))
+        py_t = f"list[{py_it}]"          # element import (imp) still applies; list is builtin
+    else:
+        py_t, imp = _TYPES.get((t, fmt), _TYPES.get((t, None), ("str", None)))
     if not required:
         return f"Optional[{py_t}]", imp
     return py_t, imp
@@ -184,6 +190,13 @@ def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
         desc = fprop.get("description", "").strip().rstrip(".")
         fields.append((fname, py_fname, py_t, is_required, desc))
 
+    # Parallel-array constraints (x-parallel-to): when an optional array must have
+    # the same length as another array, emit a model_validator to enforce it.
+    parallels = [(_snake(fn), _snake(fp["x-parallel-to"]))
+                 for fn, fp in properties.items() if fp.get("x-parallel-to")]
+    if parallels:
+        imports_from.setdefault("pydantic", set()).add("model_validator")
+
     # Derive package + output path (mirrors directory structure under base package)
     rel          = schema_path.relative_to(schemas_root)
     subpkg_parts = list(rel.parent.parts)          # e.g. ["marketdata"]
@@ -236,6 +249,16 @@ def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
                 lines.append(f'    {py_name}: {py_t} = None')
             if desc:
                 lines.append(f'    """{desc}"""')
+
+    if parallels:
+        lines.append(f'')
+        lines.append(f'    @model_validator(mode="after")')
+        lines.append(f'    def _check_parallel_lengths(self):')
+        for pf, pt in parallels:
+            lines.append(f'        if self.{pf} is not None and len(self.{pf}) != len(self.{pt}):')
+            lines.append(f'            raise ValueError(')
+            lines.append(f'                f"{pf} length ({{len(self.{pf})}}) must equal {pt} length ({{len(self.{pt})}})")')
+        lines.append(f'        return self')
 
     lines.append(f'')
     lines.append(f'    # -- Datum protocol ---------------------------------------------------')
