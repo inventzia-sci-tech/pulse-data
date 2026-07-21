@@ -26,12 +26,14 @@ resolve a type from a self-describing tagged JSON envelope on decode.
 
 ## Python — `generate_python.py`
 
-Generates Pydantic v2 models into `schemas/schemas_py/`.
+Generates Pydantic v2 models into the installable source tree at
+`src/inventzia/pulse/data/schemas/`.
 
 ```bash
 conda run -n pulse python generate_python.py \
   --schemas-dir ../schemas_yaml \
-  --output-dir  ../schemas_py \
+  --output-dir  ../../src \
+  --base-package inventzia.pulse.data.schemas \
   -v
 ```
 
