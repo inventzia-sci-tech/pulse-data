@@ -21,6 +21,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.inventzia.pulse.data.datum.Datum;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -37,6 +38,9 @@ public record VectorValue(
 ) implements Datum {
 
     public VectorValue {
+        key = Objects.requireNonNull(key, "key");
+        values = List.copyOf(values);
+        valueIds = valueIds == null ? null : List.copyOf(valueIds);
         if (valueIds != null && values != null && valueIds.size() != values.size()) {
             throw new IllegalArgumentException(
                 "valueIds length (" + valueIds.size() + ") must equal values length (" + values.size() + ")");

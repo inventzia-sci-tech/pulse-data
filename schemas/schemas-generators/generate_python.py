@@ -119,7 +119,7 @@ def _py_type(prop: dict, required: bool) -> tuple[str, tuple | None]:
         item = prop.get("items", {})
         py_it, imp = _TYPES.get((item.get("type", "string"), item.get("format")),
                                 _TYPES.get((item.get("type", "string"), None), ("str", None)))
-        py_t = f"list[{py_it}]"          # element import (imp) still applies; list is builtin
+        py_t = f"tuple[{py_it}, ...]"    # immutable sequence; element import (imp) still applies
     else:
         py_t, imp = _TYPES.get((t, fmt), _TYPES.get((t, None), ("str", None)))
     if not required:
@@ -222,7 +222,7 @@ def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
         lines.append(f'    {description}')
         lines.append(f'    """')
     lines.append(f'')
-    lines.append(f'    model_config = ConfigDict(extra="ignore")')
+    lines.append(f'    model_config = ConfigDict(extra="ignore", frozen=True)')
     lines.append(f'')
     lines.append(f'    TYPE_ID:      ClassVar[str] = "{schema_id}"')
     lines.append(f'    TYPE_VERSION: ClassVar[int] = 1')

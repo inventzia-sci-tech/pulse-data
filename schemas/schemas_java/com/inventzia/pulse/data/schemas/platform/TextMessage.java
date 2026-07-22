@@ -19,6 +19,7 @@ package com.inventzia.pulse.data.schemas.platform;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.inventzia.pulse.data.datum.Datum;
+import java.util.Objects;
 
 /**
  * Generic carrier for a free-text string payload. The platform equivalent of a plain message — useful for diagnostics, echo/relay examples, and any actor or gateway that needs to move arbitrary text on a topic.
@@ -31,6 +32,11 @@ public record TextMessage(
     @JsonProperty("msgTime") long msgTime,
     @JsonProperty("text") String text
 ) implements Datum {
+
+    public TextMessage {
+        msgKey = Objects.requireNonNull(msgKey, "msgKey");
+        text = Objects.requireNonNull(text, "text");
+    }
 
     public static final String TYPE_ID      = "com.inventzia.pulse.data.schemas.platform.TextMessage";
     public static final int    TYPE_VERSION = 1;

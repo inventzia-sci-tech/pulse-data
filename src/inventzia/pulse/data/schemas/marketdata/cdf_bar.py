@@ -24,7 +24,7 @@ class CdfBar(BaseModel):
     Common data format (CDF) market data bar.
     """
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", frozen=True)
 
     TYPE_ID:      ClassVar[str] = "com.inventzia.pulse.data.schemas.marketdata.CdfBar"
     TYPE_VERSION: ClassVar[int] = 1

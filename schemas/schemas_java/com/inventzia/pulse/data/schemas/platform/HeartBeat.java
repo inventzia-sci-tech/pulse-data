@@ -19,6 +19,7 @@ package com.inventzia.pulse.data.schemas.platform;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.inventzia.pulse.data.datum.Datum;
+import java.util.Objects;
 
 /**
  * Periodic platform heartbeat produced by HeartBeatGateway. Actors subscribe to a heartbeat Topic to implement periodic behaviour (analytics windows, timeout checks) that fires at regular simulation-time intervals regardless of whether domain events arrive in that interval.
@@ -30,6 +31,10 @@ public record HeartBeat(
     @JsonProperty("beatKey") String beatKey,
     @JsonProperty("beatTime") long beatTime
 ) implements Datum {
+
+    public HeartBeat {
+        beatKey = Objects.requireNonNull(beatKey, "beatKey");
+    }
 
     public static final String TYPE_ID      = "com.inventzia.pulse.data.schemas.platform.HeartBeat";
     public static final int    TYPE_VERSION = 1;

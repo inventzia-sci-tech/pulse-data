@@ -101,8 +101,10 @@ class CdfBar(BaseModel):
   fields fulfil them via `x-datum-key` / `x-datum-time`. Nothing else about the payload is exposed
   to the infrastructure.
 
-- **Data classes are immutable.** Java records and frozen-by-convention Pydantic models. A value on
-  the bus cannot be mutated by one consumer and observed changed by another.
+- **Data classes are genuinely immutable.** Java records take defensive unmodifiable copies of any
+  list fields and reject null required fields in their compact constructor; Pydantic models are
+  `frozen` with tuple (not list) sequences. A value on the bus cannot be mutated by one consumer and
+  observed changed by another, nor become invalid after construction.
 
 - **JSON is the wire format.** Java (Jackson) and Python (Pydantic) serialise to and from the same
   JSON, so a value produced in one language is consumed verbatim in the other.

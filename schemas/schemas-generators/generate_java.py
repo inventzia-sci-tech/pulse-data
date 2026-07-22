@@ -152,13 +152,36 @@ def generate_record(schema_path: Path, schemas_root: Path, output_root: Path,
         java_t, imps = _java_type(fprop, is_required)
         imports.update(imps)
         java_name = _camel(fname)
+        is_array  = fprop.get("type") == "array"
         desc      = fprop.get("description", "").strip().rstrip(".")
-        components.append((fname, java_name, java_t, desc))
+        components.append((fname, java_name, java_t, is_array, is_required, desc))
 
     # Nullable annotation import when any optional field present
     optional_fields = [c for c in components if c[0] not in required]
     if optional_fields:
         imports.add("org.jspecify.annotations.Nullable")
+
+    # Immutability + validity, enforced in a compact constructor: null-check required
+    # object fields, take unmodifiable defensive copies of List fields (so neither the
+    # caller's original list nor the accessor's return can mutate the record), then the
+    # parallel-length constraints. Primitive (long/int/double/boolean) and already-
+    # immutable (String/BigDecimal/…) fields need nothing.
+    _PRIMITIVES = {"long", "int", "double", "boolean"}
+    ctor_body: list[str] = []
+    for fname, java_name, java_t, is_array, is_req, desc in components:
+        if is_array and is_req:
+            ctor_body.append(f"        {java_name} = List.copyOf({java_name});")
+        elif is_array:
+            ctor_body.append(f"        {java_name} = {java_name} == null ? null : List.copyOf({java_name});")
+        elif is_req and java_t not in _PRIMITIVES:
+            ctor_body.append(f'        {java_name} = Objects.requireNonNull({java_name}, "{java_name}");')
+    for pf, pt in parallels:
+        ctor_body.append(f"        if ({pf} != null && {pt} != null && {pf}.size() != {pt}.size()) {{")
+        ctor_body.append(f"            throw new IllegalArgumentException(")
+        ctor_body.append(f'                "{pf} length (" + {pf}.size() + ") must equal {pt} length (" + {pt}.size() + ")");')
+        ctor_body.append(f"        }}")
+    if any("Objects.requireNonNull" in ln for ln in ctor_body):
+        imports.add("java.util.Objects")
 
     # Output path
     pkg_path    = Path(*package.split("."))
@@ -191,7 +214,7 @@ def generate_record(schema_path: Path, schemas_root: Path, output_root: Path,
 
     # Record components
     comp_lines = []
-    for fname, java_name, java_t, desc in components:
+    for fname, java_name, java_t, is_array, is_req, desc in components:
         nullable_ann = "@Nullable " if fname not in required else ""
         comp_lines.append(
             f"    @JsonProperty(\"{fname}\") {nullable_ann}{java_t} {java_name}"
@@ -199,13 +222,9 @@ def generate_record(schema_path: Path, schemas_root: Path, output_root: Path,
     lines.append(",\n".join(comp_lines))
     lines.append(f") implements Datum {{")
     lines.append("")
-    if parallels:
+    if ctor_body:
         lines.append(f"    public {class_name} {{")
-        for pf, pt in parallels:
-            lines.append(f"        if ({pf} != null && {pt} != null && {pf}.size() != {pt}.size()) {{")
-            lines.append(f"            throw new IllegalArgumentException(")
-            lines.append(f'                "{pf} length (" + {pf}.size() + ") must equal {pt} length (" + {pt}.size() + ")");')
-            lines.append(f"        }}")
+        lines.extend(ctor_body)
         lines.append(f"    }}")
         lines.append("")
     lines.append(f"    public static final String TYPE_ID      = \"{schema_id}\";")

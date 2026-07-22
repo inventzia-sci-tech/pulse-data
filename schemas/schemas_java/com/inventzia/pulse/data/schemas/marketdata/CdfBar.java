@@ -22,6 +22,7 @@ import com.inventzia.pulse.data.datum.Datum;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.Objects;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -46,6 +47,17 @@ public record CdfBar(
     @JsonProperty("strike") @Nullable BigDecimal strike,
     @JsonProperty("symExp") @Nullable String symExp
 ) implements Datum {
+
+    public CdfBar {
+        symb = Objects.requireNonNull(symb, "symb");
+        op = Objects.requireNonNull(op, "op");
+        hi = Objects.requireNonNull(hi, "hi");
+        lo = Objects.requireNonNull(lo, "lo");
+        cl = Objects.requireNonNull(cl, "cl");
+        vlm = Objects.requireNonNull(vlm, "vlm");
+        datetime = Objects.requireNonNull(datetime, "datetime");
+        date = Objects.requireNonNull(date, "date");
+    }
 
     public static final String TYPE_ID      = "com.inventzia.pulse.data.schemas.marketdata.CdfBar";
     public static final int    TYPE_VERSION = 1;

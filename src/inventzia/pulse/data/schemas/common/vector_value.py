@@ -23,7 +23,7 @@ class VectorValue(BaseModel):
     A generic timestamped vector of scalar observations, optionally labelled. A scalar value is simply the length-1 case. Suited to indicators that emit M components per timestamp (e.g. MACD -> [macd, signal, histogram]).
     """
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", frozen=True)
 
     TYPE_ID:      ClassVar[str] = "com.inventzia.pulse.data.schemas.common.VectorValue"
     TYPE_VERSION: ClassVar[int] = 1
@@ -32,10 +32,10 @@ class VectorValue(BaseModel):
     """The series or observation-source identifier"""
     time: int
     """Epoch milliseconds of the observation"""
-    values: list[Decimal]
+    values: tuple[Decimal, ...]
     """The M scalar observations (length 1 for a scalar value)"""
 
-    value_ids: Optional[list[str]] = Field(None, alias="valueIds")
+    value_ids: Optional[tuple[str, ...]] = Field(None, alias="valueIds")
     """Optional labels, parallel to values (positional if absent)"""
 
     @model_validator(mode="after")
