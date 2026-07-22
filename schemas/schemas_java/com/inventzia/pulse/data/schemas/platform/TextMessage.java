@@ -28,9 +28,9 @@ import java.util.Objects;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record TextMessage(
-    @JsonProperty("msgKey") String msgKey,
-    @JsonProperty("msgTime") long msgTime,
-    @JsonProperty("text") String text
+    @JsonProperty(value = "msgKey", required = true) String msgKey,
+    @JsonProperty(value = "msgTime", required = true) long msgTime,
+    @JsonProperty(value = "text", required = true) String text
 ) implements Datum {
 
     public TextMessage {

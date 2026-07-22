@@ -81,6 +81,12 @@ public final class DatumCodec {
                 .addModule(decimalAsString)
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                // Reject a JSON null for a primitive field — otherwise a null required
+                // primitive (e.g. a timestamp) would silently deserialize to 0. Missing
+                // required fields are rejected by their @JsonProperty(required=true) marking
+                // (records); FAIL_ON_MISSING_CREATOR_PROPERTIES is deliberately NOT used — it
+                // is too blunt and would also reject a legitimately absent optional field.
+                .enable(DeserializationFeature.FAIL_ON_NULL_FOR_PRIMITIVES)
                 // Serialize only the explicitly annotated record components. Without
                 // this, Jackson would auto-detect the Datum accessors getDatumKey()/
                 // getDatumTime() as extra "datumKey"/"datumTime" properties — bloating

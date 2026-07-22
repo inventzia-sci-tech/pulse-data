@@ -32,17 +32,17 @@ import org.jspecify.annotations.Nullable;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record CdfBar(
-    @JsonProperty("symb") String symb,
-    @JsonProperty("timestamp") long timestamp,
-    @JsonProperty("op") BigDecimal op,
-    @JsonProperty("hi") BigDecimal hi,
-    @JsonProperty("lo") BigDecimal lo,
-    @JsonProperty("cl") BigDecimal cl,
-    @JsonProperty("vlm") BigDecimal vlm,
+    @JsonProperty(value = "symb", required = true) String symb,
+    @JsonProperty(value = "timestamp", required = true) long timestamp,
+    @JsonProperty(value = "op", required = true) BigDecimal op,
+    @JsonProperty(value = "hi", required = true) BigDecimal hi,
+    @JsonProperty(value = "lo", required = true) BigDecimal lo,
+    @JsonProperty(value = "cl", required = true) BigDecimal cl,
+    @JsonProperty(value = "vlm", required = true) BigDecimal vlm,
     @JsonProperty("vwap") @Nullable BigDecimal vwap,
-    @JsonProperty("datetime") Instant datetime,
+    @JsonProperty(value = "datetime", required = true) Instant datetime,
     @JsonProperty("count") @Nullable Long count,
-    @JsonProperty("date") LocalDate date,
+    @JsonProperty(value = "date", required = true) LocalDate date,
     @JsonProperty("expiry") @Nullable String expiry,
     @JsonProperty("strike") @Nullable BigDecimal strike,
     @JsonProperty("symExp") @Nullable String symExp

@@ -212,13 +212,16 @@ def generate_record(schema_path: Path, schemas_root: Path, output_root: Path,
     lines.append("@JsonInclude(JsonInclude.Include.NON_NULL)")
     lines.append(f"public record {class_name}(")
 
-    # Record components
+    # Record components. Required fields are marked required=true so the codec's
+    # FAIL_ON_MISSING_CREATOR_PROPERTIES rejects a missing field on decode — otherwise
+    # a missing required primitive (e.g. a timestamp) would silently deserialize to 0,
+    # which the compact constructor cannot null-check.
     comp_lines = []
     for fname, java_name, java_t, is_array, is_req, desc in components:
-        nullable_ann = "@Nullable " if fname not in required else ""
-        comp_lines.append(
-            f"    @JsonProperty(\"{fname}\") {nullable_ann}{java_t} {java_name}"
-        )
+        nullable_ann = "@Nullable " if not is_req else ""
+        json_prop = (f'@JsonProperty(value = "{fname}", required = true)' if is_req
+                     else f'@JsonProperty("{fname}")')
+        comp_lines.append(f"    {json_prop} {nullable_ann}{java_t} {java_name}")
     lines.append(",\n".join(comp_lines))
     lines.append(f") implements Datum {{")
     lines.append("")

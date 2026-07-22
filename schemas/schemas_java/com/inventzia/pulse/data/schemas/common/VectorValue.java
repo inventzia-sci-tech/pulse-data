@@ -31,9 +31,9 @@ import org.jspecify.annotations.Nullable;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record VectorValue(
-    @JsonProperty("key") String key,
-    @JsonProperty("time") long time,
-    @JsonProperty("values") List<BigDecimal> values,
+    @JsonProperty(value = "key", required = true) String key,
+    @JsonProperty(value = "time", required = true) long time,
+    @JsonProperty(value = "values", required = true) List<BigDecimal> values,
     @JsonProperty("valueIds") @Nullable List<String> valueIds
 ) implements Datum {
 

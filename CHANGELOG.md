@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Generated datums are now genuinely immutable.** Java records take defensive `List.copyOf(...)`
   copies of list fields and `requireNonNull` required fields in a compact constructor; Python
   models are `frozen` with `tuple` (not `list`) sequences.
+- **Decode rejects missing/null required fields** (parity with Python). Required record components
+  are marked `@JsonProperty(required = true)` and the codec enables `FAIL_ON_NULL_FOR_PRIMITIVES`,
+  so a missing or null required primitive (e.g. a timestamp) no longer silently deserializes to `0`.
 
 ### Removed
 

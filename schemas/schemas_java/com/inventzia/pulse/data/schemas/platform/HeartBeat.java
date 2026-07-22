@@ -28,8 +28,8 @@ import java.util.Objects;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record HeartBeat(
-    @JsonProperty("beatKey") String beatKey,
-    @JsonProperty("beatTime") long beatTime
+    @JsonProperty(value = "beatKey", required = true) String beatKey,
+    @JsonProperty(value = "beatTime", required = true) long beatTime
 ) implements Datum {
 
     public HeartBeat {
