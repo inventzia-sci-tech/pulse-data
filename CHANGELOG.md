@@ -22,6 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with `TYPE_ID` / `TYPE_VERSION`) and `generate_python.py` (Pydantic v2 models).
 - Maven build (`pom.xml`) compiling the `Datum` interface and generated records.
 - Dual-licensing files, DCO contribution policy, security and commercial docs, DCO workflow.
+- `schemas/schemas_yaml/common/vector_value.yaml` — **`VectorValue`**, a generic timestamped
+  vector of decimal observations with an optional parallel `valueIds` (a scalar value is the
+  length-1 case).
+- Generator **array support**: `type: array` fields generate immutable `List<X>` (Java) /
+  `tuple[X, ...]` (Python).
+- Generator **`x-parallel-to` constraint**: emits an equal-length validator for parallel
+  arrays (e.g. `valueIds` must match `values`) — a Java record compact-constructor check and
+  a Pydantic `model_validator`.
 
 ### Changed
 
@@ -34,6 +42,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `py_environment_311.yml` (heavy: Airflow/pandas/SQLAlchemy) replaced by a minimal
   `py_environment.yml` (PyYAML, datamodel-code-generator, Pydantic). The heavy environment
   moved to pulse-utils.
+- **`DatumCodec` serializes `BigDecimal` as a JSON string** (was a number), matching Python's
+  `Decimal` output so exact decimals survive the cross-language boundary; the Python codec omits
+  `None` fields (`exclude_none`) to match Java's `@JsonInclude(NON_NULL)`. Both fixed latent
+  cross-language parity bugs surfaced by decimal / optional fields.
+- **Generated datums are now genuinely immutable.** Java records take defensive `List.copyOf(...)`
+  copies of list fields and `requireNonNull` required fields in a compact constructor; Python
+  models are `frozen` with `tuple` (not `list`) sequences.
 
 ### Removed
 
