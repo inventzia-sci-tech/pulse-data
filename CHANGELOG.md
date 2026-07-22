@@ -54,3 +54,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Legacy `event_metadata.yaml` envelope and the `datumIntId` integer-id scheme.
 - Obsolete generators (`autogenerate_schemas.py`, `autogenerate_schemas_with_fields.py`).
+
+### Packaging & distribution
+
+- **Installable `src/` layout + `pyproject.toml`.** The hand-written `datum/` and generated
+  `schemas/` Python trees are merged into one `src/inventzia/pulse/data/`; `pip install pulse-data`
+  works from a wheel with no repo checkout (setuptools, `find_namespace_packages`, Pydantic runtime,
+  a `[generator]` extra for PyYAML, SPDX license).
+- **PEP 420 namespace packages.** No `__init__.py` at `inventzia/` or `inventzia/pulse/` (the prefix
+  is shared with pulse-beacon so the two install side by side); regular packages with deliberate
+  exports below, so `from inventzia.pulse.data.datum import Datum` resolves.
+- **Generator defaults are script-relative**, targeting the `src/` tree — a bare
+  `python generate_python.py` regenerates the canonical location from any directory (the removed
+  `schemas_py/` is no longer recreated).
+- `pom.xml` gains release metadata (project URL, developers) and an opt-in `release` profile that
+  attaches source + javadoc jars.
+- **CI** (`.github/workflows/ci.yml`): `mvn verify` from a clean environment, plus a Python job that
+  builds the wheel, clean-installs it, checks the documented imports and PEP 420 namespace, and
+  asserts both Python and Java regeneration are diff-clean.
