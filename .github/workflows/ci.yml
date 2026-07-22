@@ -61,13 +61,19 @@ jobs:
           print("PEP 420 namespace OK")
           PY
 
-      - name: Regeneration drift + public imports
+      - name: Regeneration drift (Python + Java) + public imports
         run: |
           python -m pip install pyyaml
+          # Python models -> src/ tree
           python schemas/schemas-generators/generate_python.py --output-dir /tmp/regen
           diff -r -x __pycache__ /tmp/regen/inventzia/pulse/data/schemas src/inventzia/pulse/data/schemas
           if grep -rqE "from (datum\.python|schemas\.schemas_py|core\.python)\." /tmp/regen; then
             echo "::error::generator emitted repo-root-prefixed imports (must be public inventzia.*)"
             exit 1
           fi
-          echo "regeneration is diff-clean with public-namespace imports"
+          # Java records + registry -> schemas_java tree
+          python schemas/schemas-generators/generate_java.py \
+            --schemas-dir schemas/schemas_yaml --output-dir /tmp/regen-java \
+            --base-package com.inventzia.pulse.data.schemas
+          diff -r /tmp/regen-java/com schemas/schemas_java/com
+          echo "regeneration is diff-clean (Python + Java) with public-namespace imports"
