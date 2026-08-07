@@ -14,7 +14,8 @@ Generate immutable Java record classes from YAML schemas.
 Each generated class:
   - Lives under com.inventzia.pulse.data.schemas.<subpackage>
   - Implements com.inventzia.pulse.data.datum.Datum
-  - Declares TYPE_ID (equals the schema $id) and TYPE_VERSION
+  - Declares TYPE_ID (equals the schema $id) and TYPE_VERSION (from the schema's
+    optional x-version, default 1; bump when the wire shape changes)
   - Provides getDatumKey() and getDatumTime() driven by x-datum-key /
     x-datum-time YAML annotations
 
@@ -108,6 +109,7 @@ def generate_record(schema_path: Path, schemas_root: Path, output_root: Path,
     title       = schema.get("title")
     description = schema.get("description", "").strip()
     schema_id   = schema.get("$id", "")
+    type_version = int(schema.get("x-version", 1))   # wire/schema version; default 1
     properties  = schema.get("properties", {})
     required    = set(schema.get("required", []))
 
@@ -231,7 +233,7 @@ def generate_record(schema_path: Path, schemas_root: Path, output_root: Path,
         lines.append(f"    }}")
         lines.append("")
     lines.append(f"    public static final String TYPE_ID      = \"{schema_id}\";")
-    lines.append(f"    public static final int    TYPE_VERSION = 1;")
+    lines.append(f"    public static final int    TYPE_VERSION = {type_version};")
     lines.append("")
     lines.append(f"    @Override public String getDatumKey()  {{ return {datum_key_field}; }}")
     lines.append(f"    @Override public long   getDatumTime() {{ return {datum_time_field}; }}")

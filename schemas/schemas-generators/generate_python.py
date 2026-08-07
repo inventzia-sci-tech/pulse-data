@@ -18,7 +18,8 @@ Each generated class:
   - Extends pydantic.BaseModel with model_config(extra='ignore') so unknown
     fields from a newer producer are tolerated (forward compatibility, matching
     the Java DatumCodec which disables FAIL_ON_UNKNOWN_PROPERTIES)
-  - Declares TYPE_ID (equals the schema $id) and TYPE_VERSION as ClassVars
+  - Declares TYPE_ID (equals the schema $id) and TYPE_VERSION (from the schema's
+    optional x-version, default 1; bump when the wire shape changes) as ClassVars
   - Implements datum_key and datum_time properties driven by x-datum-key /
     x-datum-time YAML annotations
   - Satisfies the inventzia.pulse.data.datum.Datum Protocol structurally
@@ -147,6 +148,7 @@ def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
     title       = schema.get("title")
     description = schema.get("description", "").strip().replace("\n", " ")
     schema_id   = schema.get("$id", "")
+    type_version = int(schema.get("x-version", 1))   # wire/schema version; default 1
     properties  = schema.get("properties", {})
     required    = set(schema.get("required", []))
 
@@ -225,7 +227,7 @@ def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
     lines.append(f'    model_config = ConfigDict(extra="ignore", frozen=True)')
     lines.append(f'')
     lines.append(f'    TYPE_ID:      ClassVar[str] = "{schema_id}"')
-    lines.append(f'    TYPE_VERSION: ClassVar[int] = 1')
+    lines.append(f'    TYPE_VERSION: ClassVar[int] = {type_version}')
     lines.append(f'')
 
     # Required fields first, then optional
@@ -320,8 +322,18 @@ def generate_registry(models: list[dict], output_root: Path, base_package: str,
     lines.append("")
     lines.append("")
     lines.append("def type_id_of(datum) -> str:")
-    lines.append('    """Return the TYPE_ID of a datum instance."""')
-    lines.append("    return type(datum).TYPE_ID")
+    lines.append('    """Return the TYPE_ID of a datum, verified against the registry.')
+    lines.append("")
+    lines.append("    Encoding must not emit a tagged envelope for a class that is not the")
+    lines.append("    registered binding for its declared TYPE_ID, or a receiver could get a")
+    lines.append("    typeId no runtime can decode. Mirrors the Java DatumTypeRegistry check.")
+    lines.append('    """')
+    lines.append("    cls = type(datum)")
+    lines.append('    type_id = getattr(cls, "TYPE_ID", None)')
+    lines.append("    if REGISTRY.get(type_id) is not cls:")
+    lines.append("        raise KeyError(")
+    lines.append('            f"Unregistered datum type: {cls.__name__} (TYPE_ID {type_id!r})")')
+    lines.append("    return type_id")
     lines.append("")
 
     source = "\n".join(lines)

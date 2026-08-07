@@ -37,5 +37,15 @@ def class_for(type_id: str) -> type:
 
 
 def type_id_of(datum) -> str:
-    """Return the TYPE_ID of a datum instance."""
-    return type(datum).TYPE_ID
+    """Return the TYPE_ID of a datum, verified against the registry.
+
+    Encoding must not emit a tagged envelope for a class that is not the
+    registered binding for its declared TYPE_ID, or a receiver could get a
+    typeId no runtime can decode. Mirrors the Java DatumTypeRegistry check.
+    """
+    cls = type(datum)
+    type_id = getattr(cls, "TYPE_ID", None)
+    if REGISTRY.get(type_id) is not cls:
+        raise KeyError(
+            f"Unregistered datum type: {cls.__name__} (TYPE_ID {type_id!r})")
+    return type_id

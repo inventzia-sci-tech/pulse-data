@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Encode-side registry validation (Python, parity with Java).** Generated
+  `type_id_of` now verifies the class-to-`TYPE_ID` binding against the registry before
+  tagged encoding, so a producer cannot emit an envelope whose `typeId` no runtime can
+  decode (Java `typeIdOf` already did this). Groundwork for the extensible-datum SPI.
+- **`TYPE_VERSION` sourced from the schema.** Both generators read an optional
+  `x-version` (default 1) instead of hardcoding `1`, so a schema's wire version is
+  declarable and can evolve. Cross-version compatibility enforcement lands with the SPI.
 - `Datum` routing contract under `datum/` — Java interface (`getDatumKey()`,
   `getDatumTime()`) and Python `Protocol` equivalent.
 - `DatumCodec` — the canonical JSON serializer for `Datum` types, exposed as a shared
