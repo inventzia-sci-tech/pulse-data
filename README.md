@@ -25,7 +25,7 @@ never the other way round.
 | Schema sources | `schemas/schemas_yaml/` | YAML definitions — the single source of truth. |
 | Generated Java | `schemas/schemas_java/` | Immutable Java `record` classes under `com.inventzia.pulse.data.schemas`. Build artefact; do not edit. |
 | Generated Python | `src/inventzia/pulse/data/schemas/` | Pydantic v2 models under `inventzia.pulse.data.schemas` (mirrors Java), in the installable `src/` tree. Build artefact; do not edit. |
-| Type registry | both | Generated `DatumTypeRegistry` (Java) / `src/inventzia/pulse/data/schemas/registry.py` (Python): `TYPE_ID → class`, for self-describing decode. |
+| Type registry | both | Composite `DatumTypeRegistry` (Java) / `datum/registry.py` (Python): TYPE_ID ↔ class, built from the core provider plus discovered extension providers (the `DatumTypeProvider` SPI), for self-describing decode. |
 | Generators | `schemas/schemas-generators/` | `generate_java.py`, `generate_python.py`. |
 
 Everything here is light: the Java side compiles to a small jar (Jackson + JSpecify only); the
@@ -123,9 +123,9 @@ class CdfBar(BaseModel):
   / `fromTaggedJson`) wraps the value in an envelope `{"typeId": "<TYPE_ID>", "payload": {…}}`, so a
   receiver can recover the type from the message itself wherever it isn't known ahead of time — the
   in-process cross-language bridge, and later the socket/ZMQ transport. The class is resolved through
-  a generated `TYPE_ID → class` registry (`DatumTypeRegistry` in Java, `schemas/registry.py` in
-  Python) — the modern, code-generated form of the old hand-maintained datum-id factory. The same
-  envelope is produced and consumed identically in both languages.
+  a composite `TYPE_ID → class` registry (`DatumTypeRegistry` in Java, `datum/registry.py` in
+  Python), built from the core provider plus any discovered extension providers (the
+  `DatumTypeProvider` SPI). The same envelope is produced and consumed identically in both languages.
 
 - **Forward compatibility is symmetric across languages.** Both bindings tolerate unknown fields on
   read, so a newer producer that adds a field does not break an older consumer in either language:

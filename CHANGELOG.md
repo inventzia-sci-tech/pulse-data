@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Extensible datum types via a `DatumTypeProvider` SPI (Phase 1).** Independent packages
+  can now contribute routed `Datum` types without modifying pulse-data. A provider declares
+  a `provider_id` (reverse-DNS namespace root), `spi_version`, `package_version`, and
+  `DatumTypeBinding` descriptors. The composite `DatumTypeRegistry` (Java) / `datum/registry.py`
+  (Python) seeds the core provider directly and discovers extensions (Java `ServiceLoader`;
+  Python `inventzia.pulse.datum_types` entry points), validates (duplicate IDs, namespace,
+  descriptor drift, SPI/version rules, pydantic-model requirement, and more), then freezes an
+  immutable registry. The generator now emits a `CoreDatumTypeProvider` instead of a static
+  registry; the codec's public API is unchanged. Test-scoped isolation via
+  `DatumTypeRegistry.of(...)` / `build_registry([...])` and `DatumCodec.forRegistry(...)` /
+  `to_tagged_json(..., registry=)`. Manifest/fingerprint (cross-language equality gate) is
+  reserved for Phase 2.
 - **Encode-side registry validation (Python, parity with Java).** Generated
   `type_id_of` now verifies the class-to-`TYPE_ID` binding against the registry before
   tagged encoding, so a producer cannot emit an envelope whose `typeId` no runtime can

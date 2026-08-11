@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.inventzia.pulse.data.schemas.DatumTypeRegistry;
 
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -53,16 +52,26 @@ import java.math.BigDecimal;
  */
 public final class DatumCodec {
 
-    private static final DatumCodec INSTANCE = new DatumCodec();
+    private static final DatumCodec INSTANCE = new DatumCodec(DatumTypeRegistry.defaultRegistry());
 
-    /** @return the process-wide shared codec. */
+    /** @return the process-wide shared codec, bound to the default composite registry. */
     public static DatumCodec instance() {
         return INSTANCE;
     }
 
-    private final JsonMapper mapper;
+    /**
+     * @return a codec bound to a specific {@link DatumTypeRegistry} (for tests or an isolated
+     *         type universe). The mapper configuration is identical to {@link #instance()}.
+     */
+    public static DatumCodec forRegistry(DatumTypeRegistry registry) {
+        return new DatumCodec(registry);
+    }
 
-    private DatumCodec() {
+    private final JsonMapper mapper;
+    private final DatumTypeRegistry registry;
+
+    private DatumCodec(DatumTypeRegistry registry) {
+        this.registry = registry;
         // Write BigDecimal as a JSON string (not a number), so exact decimals survive
         // the cross-language boundary: Python (Pydantic) also serializes Decimal as a
         // string, and a JSON number would risk float rounding. Jackson's default
@@ -154,7 +163,7 @@ public final class DatumCodec {
      */
     public String toTaggedJson(Datum datum) {
         ObjectNode envelope = mapper.createObjectNode();
-        envelope.put(FIELD_TYPE_ID, DatumTypeRegistry.typeIdOf(datum));
+        envelope.put(FIELD_TYPE_ID, registry.typeIdOf(datum));
         envelope.set(FIELD_PAYLOAD, mapper.valueToTree(datum));
         try {
             return mapper.writeValueAsString(envelope);
@@ -180,7 +189,7 @@ public final class DatumCodec {
                 throw new DatumCodecException(
                         "Tagged JSON missing textual '" + FIELD_TYPE_ID + "': " + json);
             }
-            Class<? extends Datum> type = DatumTypeRegistry.classFor(typeIdNode.asText());
+            Class<? extends Datum> type = registry.classFor(typeIdNode.asText());
             return mapper.treeToValue(envelope.get(FIELD_PAYLOAD), type);
         } catch (JsonProcessingException e) {
             throw new DatumCodecException("Failed to deserialize tagged datum from: " + json, e);

@@ -260,84 +260,75 @@ def generate_record(schema_path: Path, schemas_root: Path, output_root: Path,
     return meta
 
 
-def generate_registry(models: list[dict], output_root: Path, base_package: str,
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]   # .../pulse-data
+CORE_PROVIDER_ID = "com.inventzia.pulse.data"
+
+
+def _project_version() -> str:
+    """The pulse-data version (base, no -SNAPSHOT), read from pom.xml so the generated
+    provider cannot drift from the canonical version; regeneration-drift catches divergence."""
+    text = (_PROJECT_ROOT / "pom.xml").read_text(encoding="utf-8")
+    m = re.search(r"<version>([^<]+)</version>", text)
+    return (m.group(1) if m else "0.0.0").replace("-SNAPSHOT", "")
+
+
+def generate_provider(models: list[dict], output_root: Path, base_package: str,
                       dry_run: bool, verbose: bool) -> None:
-    """Emit DatumTypeRegistry.java: TYPE_ID <-> Class, code-generated and exhaustive."""
-    models = sorted(models, key=lambda m: m["class_name"])
-    registry_pkg = base_package          # com.inventzia.pulse.data.schemas
+    """Emit CoreDatumTypeProvider.java: the generated core provider (SPI binding descriptors).
+
+    The composite registry (hand-written, datum/DatumTypeRegistry) seeds this provider
+    directly and discovers extension providers around it. Bindings are sorted by TYPE_ID.
+    Mirror of the Python generated CoreDatumTypeProvider.
+    """
+    models = sorted(models, key=lambda m: m["type_id"])
+    provider_pkg = base_package          # com.inventzia.pulse.data.schemas
+    version = _project_version()
     schema_rel = "all schemas under schemas_yaml/"
 
     lines = [_HEADER.format(schema_rel=schema_rel), ""]
-    lines.append(f"package {registry_pkg};")
+    lines.append(f"package {provider_pkg};")
     lines.append("")
-    lines.append("import com.inventzia.pulse.data.datum.Datum;")
+    lines.append("import com.inventzia.pulse.data.datum.DatumTypeBinding;")
+    lines.append("import com.inventzia.pulse.data.datum.DatumTypeProvider;")
     for m in models:
         lines.append(f'import {m["package"]}.{m["class_name"]};')
-    lines.append("import java.util.Map;")
-    lines.append("import java.util.Set;")
+    lines.append("import java.util.Collection;")
+    lines.append("import java.util.List;")
     lines.append("")
     lines.append("/**")
-    lines.append(" * Generated registry mapping each {@code TYPE_ID} to its generated")
-    lines.append(" * {@link Datum} class (and back), so {@code DatumCodec} can deserialize a")
-    lines.append(" * self-describing tagged envelope without being told the type in advance.")
-    lines.append(" *")
-    lines.append(" * <p>The modern form of the old hand-maintained datum-id factory: generated")
-    lines.append(" * from the same YAML as the records, so it stays exhaustive automatically.")
+    lines.append(" * The core datum-type provider (generated): pulse-data's own {@code Datum} types,")
+    lines.append(" * seeded directly into the composite {@link DatumTypeProvider} registry.")
     lines.append(" */")
-    lines.append("public final class DatumTypeRegistry {")
+    lines.append("public final class CoreDatumTypeProvider implements DatumTypeProvider {")
     lines.append("")
-    lines.append("    private DatumTypeRegistry() {")
-    lines.append("    }")
+    lines.append("    @Override public String providerId()     { return \"" + CORE_PROVIDER_ID + "\"; }")
+    lines.append("    @Override public int    spiVersion()      { return 1; }")
+    lines.append("    @Override public String packageVersion()  { return \"" + version + "\"; }")
     lines.append("")
-    lines.append("    private static final Map<String, Class<? extends Datum>> BY_ID = Map.ofEntries(")
-    by_id = [f'            Map.entry({m["class_name"]}.TYPE_ID, {m["class_name"]}.class)' for m in models]
-    lines.append(",\n".join(by_id))
-    lines.append("    );")
-    lines.append("")
-    lines.append("    private static final Map<Class<? extends Datum>, String> BY_CLASS = Map.ofEntries(")
-    by_class = [f'            Map.entry({m["class_name"]}.class, {m["class_name"]}.TYPE_ID)' for m in models]
-    lines.append(",\n".join(by_class))
-    lines.append("    );")
-    lines.append("")
-    lines.append("    /** @return the generated class registered for a {@code TYPE_ID}. */")
-    lines.append("    public static Class<? extends Datum> classFor(String typeId) {")
-    lines.append("        Class<? extends Datum> type = BY_ID.get(typeId);")
-    lines.append("        if (type == null) {")
-    lines.append('            throw new IllegalArgumentException("Unknown TYPE_ID: " + typeId);')
-    lines.append("        }")
-    lines.append("        return type;")
-    lines.append("    }")
-    lines.append("")
-    lines.append("    /** @return the {@code TYPE_ID} for a datum instance. */")
-    lines.append("    public static String typeIdOf(Datum datum) {")
-    lines.append("        String typeId = BY_CLASS.get(datum.getClass());")
-    lines.append("        if (typeId == null) {")
-    lines.append('            throw new IllegalArgumentException(')
-    lines.append('                    "Unregistered datum type: " + datum.getClass().getName());')
-    lines.append("        }")
-    lines.append("        return typeId;")
-    lines.append("    }")
-    lines.append("")
-    lines.append("    /** @return all registered TYPE_IDs. */")
-    lines.append("    public static Set<String> typeIds() {")
-    lines.append("        return BY_ID.keySet();")
+    lines.append("    @Override")
+    lines.append("    public Collection<DatumTypeBinding> bindings() {")
+    lines.append("        return List.of(")
+    binds = [f'                new DatumTypeBinding({m["class_name"]}.TYPE_ID, {m["class_name"]}.TYPE_VERSION, {m["class_name"]}.class)'
+             for m in models]
+    lines.append(",\n".join(binds))
+    lines.append("        );")
     lines.append("    }")
     lines.append("}")
     lines.append("")
 
     source = "\n".join(lines)
-    registry_file = output_root / Path(*registry_pkg.split(".")) / "DatumTypeRegistry.java"
+    provider_file = output_root / Path(*provider_pkg.split(".")) / "CoreDatumTypeProvider.java"
 
     if dry_run:
-        print(f"  registry  →  {registry_file.relative_to(output_root)} ({len(models)} types)")
+        print(f"  provider  →  {provider_file.relative_to(output_root)} ({len(models)} types)")
         if verbose:
             print(source)
         return
 
-    registry_file.parent.mkdir(parents=True, exist_ok=True)
-    registry_file.write_text(source, encoding="utf-8")
+    provider_file.parent.mkdir(parents=True, exist_ok=True)
+    provider_file.write_text(source, encoding="utf-8")
     if verbose:
-        print(f"  ✅  registry  →  {registry_file.relative_to(output_root)} ({len(models)} types)")
+        print(f"  ✅  provider  →  {provider_file.relative_to(output_root)} ({len(models)} types)")
 
 
 # ---------------------------------------------------------------------------
@@ -382,7 +373,7 @@ def main() -> int:
             fail += 1
 
     if models:
-        generate_registry(models, output_root, args.base_package, args.dry_run, args.verbose)
+        generate_provider(models, output_root, args.base_package, args.dry_run, args.verbose)
 
     print(f"\n{'✅' if fail == 0 else '⚠ '} {len(models)} generated" +
           (f", {fail} skipped/failed" if fail else ""))

@@ -61,6 +61,21 @@ import yaml
 _HERE = Path(__file__).resolve().parent                  # .../schemas/schemas-generators
 _DEFAULT_SCHEMAS_DIR = _HERE.parent / "schemas_yaml"     # .../schemas/schemas_yaml
 _DEFAULT_OUTPUT_DIR = _HERE.parent.parent / "src"        # .../pulse-data/src
+_PROJECT_ROOT = _HERE.parent.parent                      # .../pulse-data
+
+#: Reverse-DNS namespace root of the core provider; every core TYPE_ID falls under it.
+CORE_PROVIDER_ID = "com.inventzia.pulse.data"
+
+
+def _project_version() -> str:
+    """The pulse-data version, baked into the generated provider's package_version.
+
+    Read from pyproject.toml so the provider cannot drift from the canonical version;
+    the regeneration-drift check catches any divergence.
+    """
+    import tomllib
+    with open(_PROJECT_ROOT / "pyproject.toml", "rb") as f:
+        return tomllib.load(f)["project"]["version"]
 
 # ---------------------------------------------------------------------------
 # License / generation header
@@ -296,59 +311,60 @@ def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
     return meta
 
 
-def generate_registry(models: list[dict], output_root: Path, base_package: str,
+def generate_provider(models: list[dict], output_root: Path, base_package: str,
                       dry_run: bool, verbose: bool) -> None:
-    """Emit registry.py: TYPE_ID -> model class (mirror of Java DatumTypeRegistry)."""
-    models = sorted(models, key=lambda m: m["class_name"])
+    """Emit provider.py: the generated CoreDatumTypeProvider (SPI binding descriptors).
+
+    The composite registry (hand-written, in datum/registry.py) seeds this provider
+    directly and discovers extension providers around it. Bindings are sorted by TYPE_ID
+    for deterministic output. Mirror of the Java generated CoreDatumTypeProvider.
+    """
+    models = sorted(models, key=lambda m: m["type_id"])
+    version = _project_version()
     lines = [_REGISTRY_HEADER, ""]
-    lines.append('"""Self-describing decode support: TYPE_ID -> generated model class."""')
+    lines.append('"""The core datum-type provider (generated): pulse-data\'s own Datum types."""')
     lines.append("")
+    lines.append("from inventzia.pulse.data.datum.provider import DatumTypeBinding")
     for m in models:
         lines.append(f'from {m["package"]}.{m["module"]} import {m["class_name"]}')
     lines.append("")
     lines.append("")
-    lines.append("REGISTRY: dict[str, type] = {")
+    lines.append("class CoreDatumTypeProvider:")
+    lines.append('    """pulse-data\'s own datum types, seeded directly into the registry."""')
+    lines.append("")
+    lines.append("    def provider_id(self) -> str:")
+    lines.append(f'        return "{CORE_PROVIDER_ID}"')
+    lines.append("")
+    lines.append("    def spi_version(self) -> int:")
+    lines.append("        return 1")
+    lines.append("")
+    lines.append("    def package_version(self) -> str:")
+    lines.append(f'        return "{version}"')
+    lines.append("")
+    lines.append('    def bindings(self) -> "list[DatumTypeBinding]":')
+    lines.append("        return [")
     for m in models:
-        lines.append(f'    {m["class_name"]}.TYPE_ID: {m["class_name"]},')
-    lines.append("}")
+        cn = m["class_name"]
+        lines.append(f"            DatumTypeBinding({cn}.TYPE_ID, {cn}.TYPE_VERSION, {cn}),")
+    lines.append("        ]")
     lines.append("")
-    lines.append("")
-    lines.append("def class_for(type_id: str) -> type:")
-    lines.append('    """Return the model class registered for a TYPE_ID."""')
-    lines.append("    try:")
-    lines.append("        return REGISTRY[type_id]")
-    lines.append("    except KeyError:")
-    lines.append('        raise KeyError(f"Unknown TYPE_ID: {type_id!r}") from None')
-    lines.append("")
-    lines.append("")
-    lines.append("def type_id_of(datum) -> str:")
-    lines.append('    """Return the TYPE_ID of a datum, verified against the registry.')
-    lines.append("")
-    lines.append("    Encoding must not emit a tagged envelope for a class that is not the")
-    lines.append("    registered binding for its declared TYPE_ID, or a receiver could get a")
-    lines.append("    typeId no runtime can decode. Mirrors the Java DatumTypeRegistry check.")
-    lines.append('    """')
-    lines.append("    cls = type(datum)")
-    lines.append('    type_id = getattr(cls, "TYPE_ID", None)')
-    lines.append("    if REGISTRY.get(type_id) is not cls:")
-    lines.append("        raise KeyError(")
-    lines.append('            f"Unregistered datum type: {cls.__name__} (TYPE_ID {type_id!r})")')
-    lines.append("    return type_id")
+    lines.append("    def manifest(self):")
+    lines.append("        return None  # reserved for Phase 2 (schema-manifest fingerprinting)")
     lines.append("")
 
     source = "\n".join(lines)
-    registry_file = output_root / Path(*base_package.split(".")) / "registry.py"
+    provider_file = output_root / Path(*base_package.split(".")) / "provider.py"
 
     if dry_run:
-        print(f"  registry  →  {registry_file.relative_to(output_root)} ({len(models)} types)")
+        print(f"  provider  →  {provider_file.relative_to(output_root)} ({len(models)} types)")
         if verbose:
             print(source)
         return
 
-    registry_file.parent.mkdir(parents=True, exist_ok=True)
-    registry_file.write_text(source, encoding="utf-8")
+    provider_file.parent.mkdir(parents=True, exist_ok=True)
+    provider_file.write_text(source, encoding="utf-8")
     if verbose:
-        print(f"  ✅  registry  →  {registry_file.relative_to(output_root)} ({len(models)} types)")
+        print(f"  ✅  provider  →  {provider_file.relative_to(output_root)} ({len(models)} types)")
 
 
 # ---------------------------------------------------------------------------
@@ -392,7 +408,7 @@ def main() -> int:
             fail += 1
 
     if models:
-        generate_registry(models, output_root, args.base_package, args.dry_run, args.verbose)
+        generate_provider(models, output_root, args.base_package, args.dry_run, args.verbose)
 
     print(f"\n{'✅' if fail == 0 else '⚠ '} {len(models)} generated" +
           (f", {fail} skipped/failed" if fail else ""))
