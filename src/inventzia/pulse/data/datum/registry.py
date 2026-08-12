@@ -15,8 +15,10 @@ hand-written infrastructure; the per-provider bindings are generated. Mirror of 
 ``DatumTypeRegistry``.
 """
 
+import hashlib
 import re
 import threading
+from dataclasses import dataclass
 from importlib.metadata import entry_points
 
 import pydantic
@@ -25,16 +27,48 @@ from inventzia.pulse.data.datum.provider import SPI_VERSION, DatumTypeBinding, D
 
 _ENTRY_POINT_GROUP = "inventzia.pulse.datum_types"
 _ID_RE = re.compile(r"[A-Za-z0-9_]+(\.[A-Za-z0-9_]+)+")   # reverse-DNS-ish: dotted segments
+_HEX64 = re.compile(r"[0-9a-f]{64}")
+_MANIFEST_FORMAT = "pdm1"
+
+
+@dataclass(frozen=True)
+class ProviderInfo:
+    """Retained, immutable metadata for one contributing provider (for diagnostics / audit)."""
+
+    provider_id: str
+    package_version: str
+    manifest: "str | None"                       # canonical pdm1 string, or None (unverifiable)
+    entries: "tuple | None"                      # ((type_id, type_version, fingerprint), ...) or None
 
 
 class Registry:
     """An immutable TYPE_ID <-> class registry. Build via :func:`build_registry`."""
 
-    __slots__ = ("_by_id", "_by_class")
+    __slots__ = ("_by_id", "_by_class", "_providers")
 
-    def __init__(self, by_id: dict, by_class: dict):
+    def __init__(self, by_id: dict, by_class: dict, providers: tuple):
         self._by_id = by_id
         self._by_class = by_class
+        self._providers = providers
+
+    def providers(self) -> tuple:
+        """Immutable :class:`ProviderInfo` snapshot for every contributing provider, in order."""
+        return self._providers
+
+    def unverifiable_providers(self) -> tuple:
+        """Provider IDs with no manifest (predating Phase 2); a fingerprint cannot include them."""
+        return tuple(pi.provider_id for pi in self._providers if pi.manifest is None)
+
+    def fingerprint(self) -> "str | None":
+        """SHA-256 hex of the providers' manifests (sorted by provider_id), or None if any is absent.
+
+        None means at least one provider is unverifiable (see :meth:`unverifiable_providers`);
+        the cross-language bridge treats that as fail-closed.
+        """
+        if any(pi.manifest is None for pi in self._providers):
+            return None
+        joined = "\n".join(pi.manifest for pi in sorted(self._providers, key=lambda pi: pi.provider_id))
+        return hashlib.sha256(joined.encode("utf-8")).hexdigest()
 
     def class_for(self, type_id: str) -> type:
         """Return the model class registered for a TYPE_ID."""
@@ -80,6 +114,52 @@ def _validate_class(provider_id: str, b: DatumTypeBinding) -> None:
         _fail(f"provider '{provider_id}' type '{b.type_id}': TYPE_VERSION must be a positive int, got {tv!r}")
 
 
+def _parse_manifest(provider, bindings) -> ProviderInfo:
+    """Parse and validate a provider's baked manifest against its bindings (see the SPI spec)."""
+    pid = provider.provider_id()
+    m = provider.manifest()
+    if m is None:
+        return ProviderInfo(pid, provider.package_version(), None, None)
+    if "\n" in m or "\r" in m:
+        _fail(f"provider '{pid}' manifest contains a newline")
+    parts = m.split("|")
+    if len(parts) != 3 or parts[0] != _MANIFEST_FORMAT:
+        _fail(f"provider '{pid}' manifest is not a {_MANIFEST_FORMAT} manifest")
+    _, embedded_pid, body = parts
+    if embedded_pid != pid:
+        _fail(f"provider '{pid}' manifest embeds provider id '{embedded_pid}'")
+
+    entries = []
+    type_ids = []
+    if body:
+        for entry in body.split(";"):
+            fields = entry.split(":")
+            if len(fields) != 3:
+                _fail(f"provider '{pid}' manifest has a malformed entry '{entry}'")
+            tid, ver_s, fp = fields
+            if not _HEX64.fullmatch(fp):
+                _fail(f"provider '{pid}' type '{tid}': fingerprint is not 64 lowercase hex")
+            try:
+                ver = int(ver_s)
+            except ValueError:
+                _fail(f"provider '{pid}' type '{tid}': non-integer version '{ver_s}'")
+            entries.append((tid, ver, fp))
+            type_ids.append(tid)
+    if type_ids != sorted(type_ids):
+        _fail(f"provider '{pid}' manifest entries are not sorted by TYPE_ID")
+    if len(set(type_ids)) != len(type_ids):
+        _fail(f"provider '{pid}' manifest has duplicate entries")
+
+    binding_ver = {b.type_id: b.type_version for b in bindings}
+    entry_ver = {tid: ver for (tid, ver, _) in entries}
+    if set(binding_ver) != set(entry_ver):
+        _fail(f"provider '{pid}' manifest does not match its bindings one-to-one")
+    for tid, ver in entry_ver.items():
+        if binding_ver[tid] != ver:
+            _fail(f"provider '{pid}' type '{tid}': manifest version {ver} != binding version {binding_ver[tid]}")
+    return ProviderInfo(pid, provider.package_version(), m, tuple(entries))
+
+
 def build_registry(providers) -> Registry:
     """Validate ``providers`` and build an immutable composite registry.
 
@@ -93,6 +173,7 @@ def build_registry(providers) -> Registry:
     by_id: dict = {}
     by_class: dict = {}
     seen_provider_ids: set = set()
+    provider_infos: list = []
 
     for provider in providers:
         if provider is None:
@@ -136,7 +217,9 @@ def build_registry(providers) -> Registry:
             by_id[b.type_id] = b.datum_class
             by_class[b.datum_class] = b.type_id
 
-    return Registry(by_id, by_class)
+        provider_infos.append(_parse_manifest(provider, bindings))
+
+    return Registry(by_id, by_class, tuple(provider_infos))
 
 
 def _discover_providers() -> list:

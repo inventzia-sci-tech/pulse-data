@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Schema manifest and composite fingerprint (SPI Phase 2).** Each provider now carries a
+  baked, canonical manifest (`pdm1|<provider>|<TYPE_ID>:<version>:<sha256>;...`) computed by a
+  shared generator module from the normalized wire-validation schema, so Python and Java bake
+  byte-identical manifests. The composite registry retains immutable provider metadata
+  (`providers()`), validates each manifest against its bindings at construction, and exposes a
+  cross-language `fingerprint()` (or `None` with `unverifiable_providers()` when a provider
+  predates Phase 2). The normalizer is a closed whitelist that fails generation on any
+  unsupported wire-relevant construct rather than omitting it. A cross-language test asserts the
+  Python and Java composite fingerprints are equal. Bridge startup gate and `RunInfo` recording
+  are Phase 3.
 - **Extensible datum types via a `DatumTypeProvider` SPI (Phase 1).** Independent packages
   can now contribute routed `Datum` types without modifying pulse-data. A provider declares
   a `provider_id` (reverse-DNS namespace root), `spi_version`, `package_version`, and

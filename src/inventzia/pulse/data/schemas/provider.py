@@ -42,4 +42,4 @@ class CoreDatumTypeProvider:
         ]
 
     def manifest(self):
-        return None  # reserved for Phase 2 (schema-manifest fingerprinting)
+        return "pdm1|com.inventzia.pulse.data|com.inventzia.pulse.data.schemas.common.VectorValue:1:47a0adfbbf19dcd7614cdf985086a67531a2bc9f5d1d6c5a5a721e6ee753ba23;com.inventzia.pulse.data.schemas.marketdata.CdfBar:1:3e6e7e76fc16188671c3c7d8036490b6c78bebcfa9293998af6d286e1a0dabd8;com.inventzia.pulse.data.schemas.platform.HeartBeat:1:5e08970887ce4d3424a8228b3a8b83622ba72a50d628ea155ca390802451844c;com.inventzia.pulse.data.schemas.platform.TextMessage:1:bb0ccb451f6abf888d58d3bab5bd82fbf31feab607139de5db38644977f1383a"

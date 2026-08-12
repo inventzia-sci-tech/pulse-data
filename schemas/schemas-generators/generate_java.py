@@ -32,6 +32,8 @@ Usage:
 import argparse
 import re
 import sys
+
+import manifest as _manifest
 from pathlib import Path
 
 import yaml
@@ -241,7 +243,8 @@ def generate_record(schema_path: Path, schemas_root: Path, output_root: Path,
     lines.append("")
 
     source = "\n".join(lines)
-    meta = {"type_id": schema_id, "package": package, "class_name": class_name}
+    meta = {"type_id": schema_id, "package": package, "class_name": class_name,
+            "type_version": type_version, "fingerprint": _manifest.type_fingerprint(schema)}
 
     if dry_run:
         if verbose:
@@ -294,6 +297,7 @@ def generate_provider(models: list[dict], output_root: Path, base_package: str,
         lines.append(f'import {m["package"]}.{m["class_name"]};')
     lines.append("import java.util.Collection;")
     lines.append("import java.util.List;")
+    lines.append("import java.util.Optional;")
     lines.append("")
     lines.append("/**")
     lines.append(" * The core datum-type provider (generated): pulse-data's own {@code Datum} types,")
@@ -312,6 +316,13 @@ def generate_provider(models: list[dict], output_root: Path, base_package: str,
              for m in models]
     lines.append(",\n".join(binds))
     lines.append("        );")
+    lines.append("    }")
+    lines.append("")
+    manifest_str = _manifest.provider_manifest(
+        CORE_PROVIDER_ID, [(m["type_id"], m["type_version"], m["fingerprint"]) for m in models])
+    lines.append("    @Override")
+    lines.append("    public Optional<String> manifest() {")
+    lines.append(f'        return Optional.of("{manifest_str}");')
     lines.append("    }")
     lines.append("}")
     lines.append("")

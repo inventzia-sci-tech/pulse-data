@@ -13,13 +13,20 @@ package com.inventzia.pulse.data.datum;
 
 import com.inventzia.pulse.data.schemas.CoreDatumTypeProvider;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.ServiceLoader;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * The composite datum-type registry: {@code TYPE_ID <-> } model class.
@@ -37,13 +44,68 @@ public final class DatumTypeRegistry {
     /** The SPI contract version this pulse-data supports. Providers must match it exactly. */
     public static final int SPI_VERSION = 1;
 
+    private static final String MANIFEST_FORMAT = "pdm1";
+    private static final Pattern HEX64 = Pattern.compile("[0-9a-f]{64}");
+
+    /** One parsed manifest entry: TYPE_ID, TYPE_VERSION, and per-type fingerprint. */
+    public record TypeEntry(String typeId, int typeVersion, String fingerprint) {}
+
+    /** Retained, immutable metadata for one contributing provider (diagnostics / audit). */
+    public record ProviderInfo(String providerId, String packageVersion,
+                               String manifest, List<TypeEntry> entries) {}
+
     private final Map<String, Class<? extends Datum>> byId;
     private final Map<Class<? extends Datum>, String> byClass;
+    private final List<ProviderInfo> providers;
 
     private DatumTypeRegistry(Map<String, Class<? extends Datum>> byId,
-                             Map<Class<? extends Datum>, String> byClass) {
+                             Map<Class<? extends Datum>, String> byClass,
+                             List<ProviderInfo> providers) {
         this.byId = byId;
         this.byClass = byClass;
+        this.providers = providers;
+    }
+
+    /** @return an immutable {@link ProviderInfo} snapshot for every contributing provider, in order. */
+    public List<ProviderInfo> providers() {
+        return providers;
+    }
+
+    /** @return provider IDs with no manifest (predating Phase 2); a fingerprint cannot include them. */
+    public List<String> unverifiableProviders() {
+        List<String> out = new ArrayList<>();
+        for (ProviderInfo p : providers) {
+            if (p.manifest() == null) out.add(p.providerId());
+        }
+        return List.copyOf(out);
+    }
+
+    /**
+     * @return the SHA-256 hex of the providers' manifests (sorted by providerId), or {@code null}
+     *         if any provider is unverifiable (see {@link #unverifiableProviders()}). {@code null}
+     *         is treated as fail-closed by the cross-language bridge.
+     */
+    public String fingerprint() {
+        List<ProviderInfo> ordered = new ArrayList<>(providers);
+        ordered.sort(Comparator.comparing(ProviderInfo::providerId));
+        StringBuilder joined = new StringBuilder();
+        for (int i = 0; i < ordered.size(); i++) {
+            if (ordered.get(i).manifest() == null) return null;
+            if (i > 0) joined.append('\n');
+            joined.append(ordered.get(i).manifest());
+        }
+        return sha256Hex(joined.toString());
+    }
+
+    private static String sha256Hex(String s) {
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256").digest(s.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(hash.length * 2);
+            for (byte b : hash) sb.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
     }
 
     /** @return the model class registered for a {@code TYPE_ID}. */
@@ -106,7 +168,8 @@ public final class DatumTypeRegistry {
     private static DatumTypeRegistry build(List<DatumTypeProvider> providers) {
         Map<String, Class<? extends Datum>> byId = new HashMap<>();
         Map<Class<? extends Datum>, String> byClass = new HashMap<>();
-        java.util.Set<String> seenProviderIds = new java.util.HashSet<>();
+        Set<String> seenProviderIds = new HashSet<>();
+        List<ProviderInfo> providerInfos = new ArrayList<>();
 
         for (DatumTypeProvider provider : providers) {
             if (provider == null) {
@@ -178,8 +241,74 @@ public final class DatumTypeRegistry {
                 byId.put(b.typeId(), b.datumClass());
                 byClass.put(b.datumClass(), b.typeId());
             }
+
+            providerInfos.add(parseManifest(provider, bindings));
         }
-        return new DatumTypeRegistry(Map.copyOf(byId), Map.copyOf(byClass));
+        return new DatumTypeRegistry(Map.copyOf(byId), Map.copyOf(byClass), List.copyOf(providerInfos));
+    }
+
+    /** Parse and validate a provider's baked manifest against its bindings (see the SPI spec). */
+    private static ProviderInfo parseManifest(DatumTypeProvider provider, List<DatumTypeBinding> bindings) {
+        String pid = provider.providerId();
+        Optional<String> mo = provider.manifest();
+        if (mo.isEmpty()) {
+            return new ProviderInfo(pid, provider.packageVersion(), null, List.of());
+        }
+        String m = mo.get();
+        if (m.indexOf('\n') >= 0 || m.indexOf('\r') >= 0) {
+            fail("provider '" + pid + "' manifest contains a newline");
+        }
+        String[] parts = m.split("\\|", -1);
+        if (parts.length != 3 || !parts[0].equals(MANIFEST_FORMAT)) {
+            fail("provider '" + pid + "' manifest is not a " + MANIFEST_FORMAT + " manifest");
+        }
+        if (!parts[1].equals(pid)) {
+            fail("provider '" + pid + "' manifest embeds provider id '" + parts[1] + "'");
+        }
+        List<TypeEntry> entries = new ArrayList<>();
+        List<String> typeIds = new ArrayList<>();
+        if (!parts[2].isEmpty()) {
+            for (String entry : parts[2].split(";", -1)) {
+                String[] f = entry.split(":", -1);
+                if (f.length != 3) {
+                    fail("provider '" + pid + "' manifest has a malformed entry '" + entry + "'");
+                }
+                if (!HEX64.matcher(f[2]).matches()) {
+                    fail("provider '" + pid + "' type '" + f[0] + "': fingerprint is not 64 lowercase hex");
+                }
+                int ver;
+                try {
+                    ver = Integer.parseInt(f[1]);
+                } catch (NumberFormatException e) {
+                    fail("provider '" + pid + "' type '" + f[0] + "': non-integer version '" + f[1] + "'");
+                    return null; // unreachable
+                }
+                entries.add(new TypeEntry(f[0], ver, f[2]));
+                typeIds.add(f[0]);
+            }
+        }
+        List<String> sorted = new ArrayList<>(typeIds);
+        sorted.sort(Comparator.naturalOrder());
+        if (!typeIds.equals(sorted)) {
+            fail("provider '" + pid + "' manifest entries are not sorted by TYPE_ID");
+        }
+        if (new HashSet<>(typeIds).size() != typeIds.size()) {
+            fail("provider '" + pid + "' manifest has duplicate entries");
+        }
+        Map<String, Integer> bindingVer = new HashMap<>();
+        for (DatumTypeBinding b : bindings) bindingVer.put(b.typeId(), b.typeVersion());
+        Map<String, Integer> entryVer = new HashMap<>();
+        for (TypeEntry e : entries) entryVer.put(e.typeId(), e.typeVersion());
+        if (!bindingVer.keySet().equals(entryVer.keySet())) {
+            fail("provider '" + pid + "' manifest does not match its bindings one-to-one");
+        }
+        for (Map.Entry<String, Integer> e : entryVer.entrySet()) {
+            if (!bindingVer.get(e.getKey()).equals(e.getValue())) {
+                fail("provider '" + pid + "' type '" + e.getKey() + "': manifest version " + e.getValue()
+                        + " != binding version " + bindingVer.get(e.getKey()));
+            }
+        }
+        return new ProviderInfo(pid, provider.packageVersion(), m, List.copyOf(entries));
     }
 
     private static String readTypeIdConstant(String pid, DatumTypeBinding b) {

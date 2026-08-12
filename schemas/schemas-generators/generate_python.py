@@ -51,6 +51,7 @@ import re
 import sys
 from pathlib import Path
 
+import manifest as _manifest
 import yaml
 
 # ---------------------------------------------------------------------------
@@ -290,7 +291,8 @@ def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
     lines.append(f'')
 
     source = "\n".join(lines)
-    meta = {"type_id": schema_id, "package": package, "module": module, "class_name": title}
+    meta = {"type_id": schema_id, "package": package, "module": module, "class_name": title,
+            "type_version": type_version, "fingerprint": _manifest.type_fingerprint(schema)}
 
     if dry_run:
         if verbose:
@@ -348,8 +350,10 @@ def generate_provider(models: list[dict], output_root: Path, base_package: str,
         lines.append(f"            DatumTypeBinding({cn}.TYPE_ID, {cn}.TYPE_VERSION, {cn}),")
     lines.append("        ]")
     lines.append("")
+    manifest_str = _manifest.provider_manifest(
+        CORE_PROVIDER_ID, [(m["type_id"], m["type_version"], m["fingerprint"]) for m in models])
     lines.append("    def manifest(self):")
-    lines.append("        return None  # reserved for Phase 2 (schema-manifest fingerprinting)")
+    lines.append(f'        return "{manifest_str}"')
     lines.append("")
 
     source = "\n".join(lines)
