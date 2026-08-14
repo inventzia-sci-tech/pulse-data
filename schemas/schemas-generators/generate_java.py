@@ -276,16 +276,17 @@ def _project_version() -> str:
 
 
 def generate_provider(models: list[dict], output_root: Path, base_package: str,
+                      provider_id: str, provider_class: str, package_version: str,
                       dry_run: bool, verbose: bool) -> None:
-    """Emit CoreDatumTypeProvider.java: the generated core provider (SPI binding descriptors).
+    """Emit <ProviderClass>.java: a generated {@code DatumTypeProvider} (SPI binding descriptors).
 
-    The composite registry (hand-written, datum/DatumTypeRegistry) seeds this provider
-    directly and discovers extension providers around it. Bindings are sorted by TYPE_ID.
-    Mirror of the Python generated CoreDatumTypeProvider.
+    Parameterized by provider_id / provider_class / package_version so the same generator
+    produces both pulse-data's core provider and an extension package's own provider.
+    Bindings are sorted by TYPE_ID.
     """
     models = sorted(models, key=lambda m: m["type_id"])
-    provider_pkg = base_package          # com.inventzia.pulse.data.schemas
-    version = _project_version()
+    provider_pkg = base_package
+    version = package_version
     schema_rel = "all schemas under schemas_yaml/"
 
     lines = [_HEADER.format(schema_rel=schema_rel), ""]
@@ -300,12 +301,11 @@ def generate_provider(models: list[dict], output_root: Path, base_package: str,
     lines.append("import java.util.Optional;")
     lines.append("")
     lines.append("/**")
-    lines.append(" * The core datum-type provider (generated): pulse-data's own {@code Datum} types,")
-    lines.append(" * seeded directly into the composite {@link DatumTypeProvider} registry.")
+    lines.append(f" * Datum types contributed by {provider_id} (generated), discovered via the SPI.")
     lines.append(" */")
-    lines.append("public final class CoreDatumTypeProvider implements DatumTypeProvider {")
+    lines.append(f"public final class {provider_class} implements DatumTypeProvider {{")
     lines.append("")
-    lines.append("    @Override public String providerId()     { return \"" + CORE_PROVIDER_ID + "\"; }")
+    lines.append("    @Override public String providerId()     { return \"" + provider_id + "\"; }")
     lines.append("    @Override public int    spiVersion()      { return 1; }")
     lines.append("    @Override public String packageVersion()  { return \"" + version + "\"; }")
     lines.append("")
@@ -319,7 +319,7 @@ def generate_provider(models: list[dict], output_root: Path, base_package: str,
     lines.append("    }")
     lines.append("")
     manifest_str = _manifest.provider_manifest(
-        CORE_PROVIDER_ID, [(m["type_id"], m["type_version"], m["fingerprint"]) for m in models])
+        provider_id, [(m["type_id"], m["type_version"], m["fingerprint"]) for m in models])
     lines.append("    @Override")
     lines.append("    public Optional<String> manifest() {")
     lines.append(f'        return Optional.of("{manifest_str}");')
@@ -328,7 +328,7 @@ def generate_provider(models: list[dict], output_root: Path, base_package: str,
     lines.append("")
 
     source = "\n".join(lines)
-    provider_file = output_root / Path(*provider_pkg.split(".")) / "CoreDatumTypeProvider.java"
+    provider_file = output_root / Path(*provider_pkg.split(".")) / f"{provider_class}.java"
 
     if dry_run:
         print(f"  provider  →  {provider_file.relative_to(output_root)} ({len(models)} types)")
@@ -355,6 +355,12 @@ def main() -> int:
                         help="Root output directory for generated Java files")
     parser.add_argument("--base-package", default="com.inventzia.pulse.data.schemas",
                         help="Base Java package for all generated classes")
+    parser.add_argument("--provider-id", default=CORE_PROVIDER_ID,
+                        help="Reverse-DNS provider id; every TYPE_ID must fall under it")
+    parser.add_argument("--provider-class", default="CoreDatumTypeProvider",
+                        help="Class name for the generated provider")
+    parser.add_argument("--package-version", default=None,
+                        help="Baked into the provider's packageVersion (default: this project's version)")
     parser.add_argument("--dry-run", action="store_true",
                         help="Print generated output without writing files")
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -384,7 +390,9 @@ def main() -> int:
             fail += 1
 
     if models:
-        generate_provider(models, output_root, args.base_package, args.dry_run, args.verbose)
+        pkg_version = args.package_version if args.package_version else _project_version()
+        generate_provider(models, output_root, args.base_package, args.provider_id,
+                          args.provider_class, pkg_version, args.dry_run, args.verbose)
 
     print(f"\n{'✅' if fail == 0 else '⚠ '} {len(models)} generated" +
           (f", {fail} skipped/failed" if fail else ""))

@@ -27,8 +27,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * The core datum-type provider (generated): pulse-data's own {@code Datum} types,
- * seeded directly into the composite {@link DatumTypeProvider} registry.
+ * Datum types contributed by com.inventzia.pulse.data (generated), discovered via the SPI.
  */
 public final class CoreDatumTypeProvider implements DatumTypeProvider {
 

@@ -314,28 +314,29 @@ def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
 
 
 def generate_provider(models: list[dict], output_root: Path, base_package: str,
+                      provider_id: str, provider_class: str, package_version: str,
                       dry_run: bool, verbose: bool) -> None:
-    """Emit provider.py: the generated CoreDatumTypeProvider (SPI binding descriptors).
+    """Emit provider.py: a generated ``DatumTypeProvider`` (SPI binding descriptors).
 
-    The composite registry (hand-written, in datum/registry.py) seeds this provider
-    directly and discovers extension providers around it. Bindings are sorted by TYPE_ID
-    for deterministic output. Mirror of the Java generated CoreDatumTypeProvider.
+    Parameterized by ``provider_id`` / ``provider_class`` / ``package_version`` so the same
+    generator produces both pulse-data's core provider and an extension package's own
+    provider. Bindings are sorted by TYPE_ID for deterministic output.
     """
     models = sorted(models, key=lambda m: m["type_id"])
-    version = _project_version()
+    version = package_version
     lines = [_REGISTRY_HEADER, ""]
-    lines.append('"""The core datum-type provider (generated): pulse-data\'s own Datum types."""')
+    lines.append(f'"""The datum-type provider (generated) for {provider_id}."""')
     lines.append("")
     lines.append("from inventzia.pulse.data.datum.provider import DatumTypeBinding")
     for m in models:
         lines.append(f'from {m["package"]}.{m["module"]} import {m["class_name"]}')
     lines.append("")
     lines.append("")
-    lines.append("class CoreDatumTypeProvider:")
-    lines.append('    """pulse-data\'s own datum types, seeded directly into the registry."""')
+    lines.append(f"class {provider_class}:")
+    lines.append(f'    """Datum types contributed by {provider_id}, discovered via the SPI."""')
     lines.append("")
     lines.append("    def provider_id(self) -> str:")
-    lines.append(f'        return "{CORE_PROVIDER_ID}"')
+    lines.append(f'        return "{provider_id}"')
     lines.append("")
     lines.append("    def spi_version(self) -> int:")
     lines.append("        return 1")
@@ -351,7 +352,7 @@ def generate_provider(models: list[dict], output_root: Path, base_package: str,
     lines.append("        ]")
     lines.append("")
     manifest_str = _manifest.provider_manifest(
-        CORE_PROVIDER_ID, [(m["type_id"], m["type_version"], m["fingerprint"]) for m in models])
+        provider_id, [(m["type_id"], m["type_version"], m["fingerprint"]) for m in models])
     lines.append("    def manifest(self):")
     lines.append(f'        return "{manifest_str}"')
     lines.append("")
@@ -384,6 +385,12 @@ def main() -> int:
                              "<output-dir>/inventzia/pulse/data/schemas/")
     parser.add_argument("--base-package", default="inventzia.pulse.data.schemas",
                         help="Base Python package for all generated models")
+    parser.add_argument("--provider-id", default=CORE_PROVIDER_ID,
+                        help="Reverse-DNS provider id; every TYPE_ID must fall under it")
+    parser.add_argument("--provider-class", default="CoreDatumTypeProvider",
+                        help="Class name for the generated provider")
+    parser.add_argument("--package-version", default=None,
+                        help="Baked into the provider's package_version (default: this project's version)")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
@@ -412,7 +419,9 @@ def main() -> int:
             fail += 1
 
     if models:
-        generate_provider(models, output_root, args.base_package, args.dry_run, args.verbose)
+        pkg_version = args.package_version if args.package_version else _project_version()
+        generate_provider(models, output_root, args.base_package, args.provider_id,
+                          args.provider_class, pkg_version, args.dry_run, args.verbose)
 
     print(f"\n{'✅' if fail == 0 else '⚠ '} {len(models)} generated" +
           (f", {fail} skipped/failed" if fail else ""))

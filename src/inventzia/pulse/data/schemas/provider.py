@@ -12,7 +12,7 @@
 # Source: all schemas under schemas_yaml/
 # Regenerate: python schemas/schemas-generators/generate_python.py
 
-"""The core datum-type provider (generated): pulse-data's own Datum types."""
+"""The datum-type provider (generated) for com.inventzia.pulse.data."""
 
 from inventzia.pulse.data.datum.provider import DatumTypeBinding
 from inventzia.pulse.data.schemas.common.vector_value import VectorValue
@@ -22,7 +22,7 @@ from inventzia.pulse.data.schemas.platform.text_message import TextMessage
 
 
 class CoreDatumTypeProvider:
-    """pulse-data's own datum types, seeded directly into the registry."""
+    """Datum types contributed by com.inventzia.pulse.data, discovered via the SPI."""
 
     def provider_id(self) -> str:
         return "com.inventzia.pulse.data"
