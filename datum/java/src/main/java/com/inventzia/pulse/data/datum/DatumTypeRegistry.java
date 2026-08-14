@@ -143,6 +143,21 @@ public final class DatumTypeRegistry {
         return build(providers);
     }
 
+    /**
+     * Runs the datum-type SPI discovery and returns the process-wide composite registry: the core
+     * provider seeded directly, plus every extension {@link DatumTypeProvider} found on the
+     * classpath via {@link ServiceLoader}, validated and frozen.
+     *
+     * <p>Idempotent: the registry is built once and cached. Call this at a deterministic point
+     * (e.g. engine startup) to establish the type universe <em>explicitly</em>, instead of letting
+     * it be bootstrapped as a side effect of the first observability read. Returns the same
+     * instance as {@link #defaultRegistry()} — the two differ only in intent: this one names and
+     * performs the discovery step, the other is the plain accessor.
+     */
+    public static DatumTypeRegistry discoverProviders() {
+        return Holder.INSTANCE;
+    }
+
     /** The process-wide composite registry, built once (lazily) and frozen. */
     public static DatumTypeRegistry defaultRegistry() {
         return Holder.INSTANCE;
@@ -150,10 +165,15 @@ public final class DatumTypeRegistry {
 
     /** Initialization-on-demand holder: builds the discovered registry on first use. */
     private static final class Holder {
-        private static final DatumTypeRegistry INSTANCE = build(discover());
+        private static final DatumTypeRegistry INSTANCE = build(loadProviders());
     }
 
-    private static List<DatumTypeProvider> discover() {
+    /**
+     * The SPI discovery itself: seed the core provider directly, then load every extension
+     * {@link DatumTypeProvider} advertised on the classpath via {@link ServiceLoader}, ordered by
+     * provider id. Invoked once by {@link Holder}; call {@link #discoverProviders()} to trigger it.
+     */
+    private static List<DatumTypeProvider> loadProviders() {
         List<DatumTypeProvider> providers = new ArrayList<>();
         providers.add(new CoreDatumTypeProvider());   // core seeded directly, never discovered
         List<DatumTypeProvider> extensions = new ArrayList<>();
