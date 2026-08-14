@@ -144,6 +144,8 @@ class CdfBar(BaseModel):
 
 ## Adding a new data type
 
+### In pulse-data itself (a core type)
+
 1. Create a YAML schema under `schemas/schemas_yaml/<area>/`, with a unique `$id`, a `title`
    (becomes the class name), and exactly one `x-datum-key` and one `x-datum-time` field.
 2. Regenerate both bindings:
@@ -156,6 +158,32 @@ class CdfBar(BaseModel):
 
 See [`schemas/schemas-generators/readme.md`](./schemas/schemas-generators/readme.md) for generator
 options (paths, dry-run, verbose).
+
+### From another package (an extension, via the `DatumTypeProvider` SPI)
+
+Pulse ships a fixed set of core datum types (market bars, heartbeats, text messages), but an
+adopter's domain rarely fits those alone. Say an IoT company adopts Pulse as the event-driven
+transport layer for its device fleet: it needs to move its own specialized payloads (sensor
+telemetry, device state, actuator commands), each with fields specific to its hardware. Because
+every Pulse event is routed across the Java engine and the Python strategies and must decode
+identically on both sides, such a payload cannot be an ad-hoc class in one language; it has to be a
+first-class, self-describing `Datum` that both runtimes agree on. The SPI is how a downstream
+package adds exactly that, on its own release cadence, without forking or modifying pulse-data.
+
+A package contributes its custom `Datum` types by implementing the `DatumTypeProvider` Service
+Provider Interface and declaring the types it adds in that provider's `bindings()` (each a type id,
+version, and `Datum` class). The implementation is registered declaratively via a
+`META-INF/services/…DatumTypeProvider` file bundled in the package's jar (and, in Python, an
+`inventzia.pulse.datum_types` entry point). At runtime these providers are discovered by
+`java.util.ServiceLoader`, which scans every jar on the classpath for that registration and loads
+the listed provider classes. The discovery is performed once, explicitly, during engine
+initialization (`DatumTypeRegistry.discoverProviders()`), which seeds the core provider and merges
+in the discovered extensions into a single validated, frozen registry.
+
+The extension owns its schema and generated bindings (it runs the same generators with its own
+`--provider-id`/`--provider-class`), so pulse-data and pulse-beacon are never edited to add the
+type. See the worked, runnable example at `examples/pulse-ext-example` (in pulse-beacon), which
+defines an `ExtendedBar` datum and flows it through the engine end to end in both languages.
 
 ---
 
