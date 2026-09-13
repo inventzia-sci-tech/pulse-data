@@ -240,13 +240,19 @@ public final class DatumTypeRegistry {
                     fail("provider '" + pid + "' type '" + b.typeId()
                             + "': TYPE_VERSION must be positive, got " + b.typeVersion());
                 }
-                // Descriptor drift: the binding must match the class's own TYPE_ID constant.
-                // Reflection here is once, at construction, not on the encode/decode hot path.
+                // Descriptor drift: the binding must match the class's own TYPE_ID / TYPE_VERSION
+                // constants. Reflection here is once, at construction, not on the encode/decode hot path.
                 String classTypeId = readTypeIdConstant(pid, b);
                 if (!b.typeId().equals(classTypeId)) {
                     fail("provider '" + pid + "': binding typeId '" + b.typeId()
                             + "' does not match " + b.datumClass().getName() + ".TYPE_ID '"
                             + classTypeId + "' (descriptor drift)");
+                }
+                int classTypeVersion = readTypeVersionConstant(pid, b);
+                if (b.typeVersion() != classTypeVersion) {
+                    fail("provider '" + pid + "' type '" + b.typeId() + "': binding typeVersion "
+                            + b.typeVersion() + " does not match " + b.datumClass().getName()
+                            + ".TYPE_VERSION " + classTypeVersion + " (descriptor drift)");
                 }
                 if (!providerClasses.add(b.datumClass())) {
                     fail("provider '" + pid + "' binds class " + b.datumClass().getName() + " more than once");
@@ -338,6 +344,16 @@ public final class DatumTypeRegistry {
             fail("provider '" + pid + "' type '" + b.typeId() + "': class "
                     + b.datumClass().getName() + " has no accessible TYPE_ID constant");
             return null; // unreachable
+        }
+    }
+
+    private static int readTypeVersionConstant(String pid, DatumTypeBinding b) {
+        try {
+            return b.datumClass().getField("TYPE_VERSION").getInt(null);
+        } catch (ReflectiveOperationException e) {
+            fail("provider '" + pid + "' type '" + b.typeId() + "': class "
+                    + b.datumClass().getName() + " has no accessible TYPE_VERSION constant");
+            return 0; // unreachable
         }
     }
 

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Schema normalizer rejects ambiguous or malformed routing/version.** The manifest generator
+  (`manifest.py`) now fails generation instead of silently accepting: more or fewer than one
+  `x-datum-key` / `x-datum-time` (it took the last-annotated before, hiding a second key/time);
+  a `required` entry that names no declared property; and a non-integer `x-version` (`int(1.9)`
+  silently truncated to `1`, collapsing distinct versions). Existing schema fingerprints are
+  unchanged (all core schemas already satisfy the stricter rules).
+- **Registry validation now checks `TYPE_VERSION` for descriptor drift.** The composite registry
+  validated a binding's `type_version` only as a positive integer; it now also requires it to equal
+  the datum class's own `TYPE_VERSION` constant, mirroring the existing `TYPE_ID` drift check. A
+  binding whose version silently disagrees with its class (a positive but drifted value) is rejected
+  at construction, in both Python (`registry.py`) and Java (`DatumTypeRegistry`).
+
 ### Added
 
 - **Schema manifest and composite fingerprint (SPI Phase 2).** Each provider now carries a

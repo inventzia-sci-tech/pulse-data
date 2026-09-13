@@ -112,6 +112,10 @@ def _validate_class(provider_id: str, b: DatumTypeBinding) -> None:
     tv = b.type_version
     if type(tv) is not int or tv <= 0:
         _fail(f"provider '{provider_id}' type '{b.type_id}': TYPE_VERSION must be a positive int, got {tv!r}")
+    cls_type_version = getattr(cls, "TYPE_VERSION", None)
+    if cls_type_version != tv:
+        _fail(f"provider '{provider_id}' type '{b.type_id}': binding type_version {tv} does not match "
+              f"{cls.__name__}.TYPE_VERSION {cls_type_version!r} (descriptor drift)")
 
 
 def _parse_manifest(provider, bindings) -> ProviderInfo:

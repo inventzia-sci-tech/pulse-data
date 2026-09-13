@@ -98,25 +98,42 @@ def normalize_type(schema: dict) -> dict:
 
     properties = schema.get("properties", {})
     required = set(schema.get("required", []))
-    key_field = time_field = None
-    norm_props = {}
-    for name, prop in properties.items():
-        if prop.get("x-datum-key"):
-            key_field = name
-        if prop.get("x-datum-time"):
-            time_field = name
-        norm_props[name] = _normalize_prop(name, prop, required)
+    # 'required' must reference declared properties; a stray name would silently affect the
+    # nullable flags and the fingerprint while corresponding to no field.
+    unknown_required = required - set(properties)
+    if unknown_required:
+        _fail(f"'required' names properties that do not exist: {sorted(unknown_required)}")
+
+    # Routing must be unambiguous: exactly one key field and one time field. Silently taking the
+    # last-annotated (the old behaviour) hides a schema that marks two keys or two times.
+    key_fields = [n for n, p in properties.items() if p.get("x-datum-key")]
+    time_fields = [n for n, p in properties.items() if p.get("x-datum-time")]
+    if len(key_fields) != 1:
+        _fail(f"exactly one property must carry x-datum-key, found {key_fields}")
+    if len(time_fields) != 1:
+        _fail(f"exactly one property must carry x-datum-time, found {time_fields}")
+
+    norm_props = {name: _normalize_prop(name, prop, required) for name, prop in properties.items()}
 
     # additionalProperties, title, description are excluded: Pulse ignores unknown fields on
     # decode regardless, and titles/descriptions are not on the wire.
     return {
         "id": schema.get("$id", ""),
-        "version": int(schema.get("x-version", 1)),
-        "key": key_field,
-        "time": time_field,
+        "version": _type_version(schema),
+        "key": key_fields[0],
+        "time": time_fields[0],
         "required": sorted(required),
         "properties": norm_props,
     }
+
+
+def _type_version(schema: dict) -> int:
+    """The type's x-version as a positive integer. Rejects fractional/non-integer versions rather
+    than silently truncating them (``int(1.9)`` -> 1), which would collide distinct versions."""
+    v = schema.get("x-version", 1)
+    if isinstance(v, bool) or not isinstance(v, int) or v <= 0:
+        _fail(f"x-version must be a positive integer, got {v!r}")
+    return v
 
 
 def type_fingerprint(schema: dict) -> str:
