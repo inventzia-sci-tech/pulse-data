@@ -156,7 +156,7 @@ class CdfBar(BaseModel):
    ```
 3. Commit the YAML **and** the regenerated Java/Python output.
 
-See [`schemas/schemas-generators/readme.md`](./schemas/schemas-generators/readme.md) for generator
+See [`schemas/schemas-generators/readme.md`](https://github.com/inventzia-sci-tech/pulse-data/blob/main/schemas/schemas-generators/readme.md) for generator
 options (paths, dry-run, verbose).
 
 ### From another package (an extension, via the `DatumTypeProvider` SPI)
@@ -190,7 +190,7 @@ defines an `ExtendedBar` datum and flows it through the engine end to end in bot
 ## Environment
 
 The Python generators run in the minimal conda environment defined by
-[`py_environment.yml`](./py_environment.yml):
+[`py_environment.yml`](https://github.com/inventzia-sci-tech/pulse-data/blob/main/py_environment.yml):
 
 ```bash
 conda env create -f py_environment.yml
@@ -201,7 +201,7 @@ This creates the shared `pulse` env (base layer). Working across the stack? puls
 the same env with a JDK + Maven + the JPype bridge — see its README.
 
 Java sources (the `Datum` interface and generated records) build with Maven via
-[`pom.xml`](./pom.xml); Java 17+.
+[`pom.xml`](https://github.com/inventzia-sci-tech/pulse-data/blob/main/pom.xml); Java 17+.
 
 ---
 
@@ -209,20 +209,20 @@ Java sources (the `Datum` interface and generated records) build with Maven via
 
 Dual-licensed:
 
-- **Open Source (AGPL v3.0 or later)** — see [`LICENSE-AGPL-3.0`](./LICENSE-AGPL-3.0).
-- **Commercial License** — see [`COMMERCIAL.md`](./COMMERCIAL.md) for the summary and
-  [`LICENSE-COMMERCIAL.txt`](./LICENSE-COMMERCIAL.txt) for the binding terms.
+- **Open Source (AGPL v3.0 or later)** — see [`LICENSE-AGPL-3.0`](https://github.com/inventzia-sci-tech/pulse-data/blob/main/LICENSE-AGPL-3.0).
+- **Commercial License** — see [`COMMERCIAL.md`](https://github.com/inventzia-sci-tech/pulse-data/blob/main/COMMERCIAL.md) for the summary and
+  [`LICENSE-COMMERCIAL.txt`](https://github.com/inventzia-sci-tech/pulse-data/blob/main/LICENSE-COMMERCIAL.txt) for the binding terms.
 
 Contact operations@inventzia.com for commercial licensing.
 
 ## Contributing
 
-By submitting a contribution you agree to [`CLA.md`](./CLA.md), including the Developer Certificate
+By submitting a contribution you agree to [`CLA.md`](https://github.com/inventzia-sci-tech/pulse-data/blob/main/CLA.md), including the Developer Certificate
 of Origin sign-off and the dual-licensing grant. CI enforces DCO sign-off on every PR commit.
 
 ## Security
 
-Report vulnerabilities privately per [`SECURITY.md`](./SECURITY.md). Do not open public issues for
+Report vulnerabilities privately per [`SECURITY.md`](https://github.com/inventzia-sci-tech/pulse-data/blob/main/SECURITY.md). Do not open public issues for
 security problems.
 
 ## Trademarks

@@ -14,7 +14,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pulse-data"
-version = "0.2.0"
+version = "0.2.1"
 description = "YAML-sourced data schemas and the Datum routing contract for the Pulse platform (one namespace, Java + Python)."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -51,6 +51,8 @@ generator = [
 
 [project.urls]
 Homepage = "https://inventzia.com"
+Repository = "https://github.com/inventzia-sci-tech/pulse-data"
+Changelog = "https://github.com/inventzia-sci-tech/pulse-data/blob/main/CHANGELOG.md"
 
 # ---------------------------------------------------------------------------
 # src/ layout with PEP 420 namespace packages. There is deliberately no
