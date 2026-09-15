@@ -31,7 +31,7 @@ class CoreDatumTypeProvider:
         return 1
 
     def package_version(self) -> str:
-        return "0.2.2"
+        return "0.3.0"
 
     def bindings(self) -> "list[DatumTypeBinding]":
         return [
