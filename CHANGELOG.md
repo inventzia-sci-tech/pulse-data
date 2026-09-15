@@ -5,6 +5,15 @@ All notable changes to pulse-data are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2026-09-15
+
+### Fixed
+
+- **First published release.** 0.2.0 and 0.2.1 were tagged but never published; the 0.2.1 tag
+  landed before the core provider was regenerated, so its wheels would bake `package_version`
+  "0.2.0". 0.2.2 regenerates the provider to match the version and is the first release published to
+  PyPI. No functional change from 0.2.1.
+
 ## [0.2.1] - 2026-09-15
 
 ### Fixed
