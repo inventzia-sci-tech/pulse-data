@@ -33,7 +33,7 @@ public final class CoreDatumTypeProvider implements DatumTypeProvider {
 
     @Override public String providerId()     { return "com.inventzia.pulse.data"; }
     @Override public int    spiVersion()      { return 1; }
-    @Override public String packageVersion()  { return "0.3.0"; }
+    @Override public String packageVersion()  { return "0.2.3"; }
 
     @Override
     public Collection<DatumTypeBinding> bindings() {
