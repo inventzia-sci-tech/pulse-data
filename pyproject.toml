@@ -27,13 +27,16 @@ authors = [
 maintainers = [
     { name = "Inventzia Science and Technology Ltd.", email = "operations@inventzia.com" },
 ]
-keywords = ["pulse", "schemas", "pydantic", "algorithmic-trading", "event-driven"]
+keywords = ["pulse", "schemas", "typed-events", "pydantic", "event-driven", "event-sourcing", "cross-language", "algorithmic-trading", "iot"]
 classifiers = [
     "Development Status :: 4 - Beta",
-    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: System Administrators",
     "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.11",
-    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Software Development :: Libraries :: Python Modules",
     "Operating System :: OS Independent",
 ]
 
