@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Obsolete `inventzia.pulse.data.schemas.registry` no longer ships.** The 0.2.2 wheel accidentally
+  bundled a stale `schemas/registry.py` (the pre-SPI mutable, core-only registry) left over in a
+  local `build/` tree; imported directly it bypassed extension discovery. The canonical registry is
+  `inventzia.pulse.data.datum.registry` (composite, SPI-aware). Wheels are now built from a clean
+  tree and content-checked, so the leftover cannot recur (see pulse-beacon `release-build.sh`).
+
 ## [0.2.2] - 2026-09-15
 
 ### Fixed
