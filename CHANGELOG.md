@@ -11,10 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **PyPI metadata repositioned as general-purpose.** Dropped the finance-specific classifiers
   (`Intended Audience :: Financial and Insurance Industry`, `Topic :: Office/Business :: Financial ::
-  Investment`) for `Developers` / `Information Technology` / `Science/Research` / `System
-  Administrators` and `Topic :: Software Development :: Libraries :: Python Modules`. Domain
-  positioning (algorithmic-trading, iot, event-sourcing, ...) moved to keywords; finance
-  classifiers stay on the domain adapters.
+  Investment`) for `Developers` / `Information Technology` / `Science/Research` and
+  `Topic :: Software Development :: Libraries :: Python Modules`. Reworded the summary to lead with
+  capabilities, and set capability-focused keywords (typed-events, code-generation, serialization,
+  cross-language). Domain/finance positioning stays on the domain adapters.
 
 ## [0.2.3] - 2026-09-16
 
