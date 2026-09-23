@@ -20,6 +20,7 @@ import com.inventzia.pulse.data.datum.DatumTypeBinding;
 import com.inventzia.pulse.data.datum.DatumTypeProvider;
 import com.inventzia.pulse.data.schemas.common.VectorValue;
 import com.inventzia.pulse.data.schemas.marketdata.CdfBar;
+import com.inventzia.pulse.data.schemas.platform.EngineStatus;
 import com.inventzia.pulse.data.schemas.platform.HeartBeat;
 import com.inventzia.pulse.data.schemas.platform.TextMessage;
 import java.util.Collection;
@@ -40,6 +41,7 @@ public final class CoreDatumTypeProvider implements DatumTypeProvider {
         return List.of(
                 new DatumTypeBinding(VectorValue.TYPE_ID, VectorValue.TYPE_VERSION, VectorValue.class),
                 new DatumTypeBinding(CdfBar.TYPE_ID, CdfBar.TYPE_VERSION, CdfBar.class),
+                new DatumTypeBinding(EngineStatus.TYPE_ID, EngineStatus.TYPE_VERSION, EngineStatus.class),
                 new DatumTypeBinding(HeartBeat.TYPE_ID, HeartBeat.TYPE_VERSION, HeartBeat.class),
                 new DatumTypeBinding(TextMessage.TYPE_ID, TextMessage.TYPE_VERSION, TextMessage.class)
         );
@@ -47,6 +49,6 @@ public final class CoreDatumTypeProvider implements DatumTypeProvider {
 
     @Override
     public Optional<String> manifest() {
-        return Optional.of("pdm1|com.inventzia.pulse.data|com.inventzia.pulse.data.schemas.common.VectorValue:1:47a0adfbbf19dcd7614cdf985086a67531a2bc9f5d1d6c5a5a721e6ee753ba23;com.inventzia.pulse.data.schemas.marketdata.CdfBar:1:3e6e7e76fc16188671c3c7d8036490b6c78bebcfa9293998af6d286e1a0dabd8;com.inventzia.pulse.data.schemas.platform.HeartBeat:1:5e08970887ce4d3424a8228b3a8b83622ba72a50d628ea155ca390802451844c;com.inventzia.pulse.data.schemas.platform.TextMessage:1:bb0ccb451f6abf888d58d3bab5bd82fbf31feab607139de5db38644977f1383a");
+        return Optional.of("pdm1|com.inventzia.pulse.data|com.inventzia.pulse.data.schemas.common.VectorValue:1:47a0adfbbf19dcd7614cdf985086a67531a2bc9f5d1d6c5a5a721e6ee753ba23;com.inventzia.pulse.data.schemas.marketdata.CdfBar:1:3e6e7e76fc16188671c3c7d8036490b6c78bebcfa9293998af6d286e1a0dabd8;com.inventzia.pulse.data.schemas.platform.EngineStatus:1:2b7aa2041dad4c67cd000b91c54491d904fc62ab0e562159fcd3f57471f2fcc8;com.inventzia.pulse.data.schemas.platform.HeartBeat:1:5e08970887ce4d3424a8228b3a8b83622ba72a50d628ea155ca390802451844c;com.inventzia.pulse.data.schemas.platform.TextMessage:1:bb0ccb451f6abf888d58d3bab5bd82fbf31feab607139de5db38644977f1383a");
     }
 }

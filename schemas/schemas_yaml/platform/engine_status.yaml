@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later OR LicenseRef-Inventzia-Commercial
+# Copyright (c) 2013-2026 Magrino Bini, Paola Apruzzese, Inventzia Science and Technology Ltd.
+#
+# This file is part of pulse-data.
+#
+# pulse-data is dual-licensed:
+#   - Under the GNU Affero General Public License v3.0 or later (see LICENSE-AGPL-3.0).
+#   - Under a commercial license (see LICENSE-COMMERCIAL.txt).
+#     Contact operations@inventzia.com.
+
+$schema: "http://json-schema.org/draft-07/schema#"
+$id: "com.inventzia.pulse.data.schemas.platform.EngineStatus"
+title: EngineStatus
+description: >
+  A lifecycle transition of the engine or one of its gateways, published as an
+  ordinary event on the engine's status topic so that recorders, viewers and
+  actors observe a run's lifecycle through the same mechanism they observe its
+  data. Emitted on every status change: the component that changed, the status
+  it left, and the status it entered.
+
+  Status is a control-plane fact about the run rather than domain data, so it is
+  delivered directly to subscribers at the moment of the change rather than
+  scheduled through the TimeMachine. That is deliberate: the first transitions
+  happen before the dispatch barrier opens and the last after the dispatch loop
+  has ended, so a status event routed through the queue would lose exactly the
+  transitions that matter most.
+type: object
+
+properties:
+
+  statusKey:
+    type: string
+    description: >
+      Routing key for the status stream. A single constant key (rather than the
+      component name) so that one subscriber receives every component's
+      transitions from one registration; the component itself travels in the
+      payload.
+    x-datum-key: true                    # routing key: the status stream
+
+  component:
+    type: string
+    description: >
+      Name of the component whose status changed — the engine, or one of its
+      gateways (e.g. "Engine", "Beater-5s").
+
+  changedAt:
+    type: integer
+    format: int64
+    description: >
+      Wall-clock time of the transition, epoch milliseconds. Wall clock rather
+      than simulation time because a lifecycle change is a fact about the
+      process, not about the data being replayed.
+    x-datum-time: true                   # routing time: when the transition happened
+
+  fromStatus:
+    type: string
+    description: The status the component left (its previous GatewayStatus name).
+
+  toStatus:
+    type: string
+    description: The status the component entered (its new GatewayStatus name).
+
+required:
+  - statusKey
+  - component
+  - changedAt
+  - fromStatus
+  - toStatus
+
+additionalProperties: false
