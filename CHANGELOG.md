@@ -5,7 +5,21 @@ All notable changes to pulse-data are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] - 2026-09-24
+
+### Added
+
+- **`EngineStatus` datum** (`com.inventzia.pulse.data.schemas.platform.EngineStatus`), generated for
+  both languages. Carries one lifecycle transition of an engine or gateway — `component`,
+  `changedAt`, `fromStatus`, `toStatus` — on a constant routing key (`statusKey`), so a single
+  subscriber observes a whole run's lifecycle from one registration. It lets pulse-beacon publish
+  status as ordinary events rather than only as log lines, which in turn lets a viewer show a run's
+  lifecycle in the same stream as its data, with no new record kind and no reader change.
+
+  **Note for upgraders:** adding a type changes the provider manifest and therefore the run
+  `typeFingerprint`. Recordings made before and after this release carry different fingerprints —
+  that is the fingerprint doing its job, the type universe genuinely changed — and both sides of the
+  cross-language bridge must be rebuilt from the same pulse-data.
 
 ### Changed
 

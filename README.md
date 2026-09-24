@@ -8,6 +8,24 @@ way for the two language bindings to drift apart — they are projections of the
 A consumer of pulse-data gets two things: a small, stable **routing contract** (`Datum`) that the
 transport layer depends on, and a growing set of **generated data classes** that implement it.
 
+## Part of the Inventzia Pulse ecosystem
+
+Pulse provides typed events, an event-driven engine for replay, simulation and real-time
+applications, and desktop tools for inspecting recorded runs. Use the components you need.
+
+| Package | Purpose | Choose it when… |
+| --- | --- | --- |
+| [`pulse-data`](https://pypi.org/project/pulse-data/) | Shared typed events, schemas and serialization for Python and Java | You need Pulse data types or want to define extensions |
+| [`pulse-beacon`](https://pypi.org/project/pulse-beacon/) | Event-driven execution with Python/Java interoperability and run recording | You want to build and run an application |
+| [`pulse-viewers`](https://pypi.org/project/pulse-viewers/) | Desktop tools for browsing runs and inspecting recorded events | You want to examine or follow a recording |
+
+Beacon depends on Data; Viewers reads Beacon's recorded files and can run independently, including on
+another machine — which is why Data and Beacon release together on one version while Viewers versions
+on its own.
+
+**New to Pulse?** The [ecosystem overview](https://github.com/inventzia-sci-tech/pulse-beacon/blob/main/docs/pulse-ecosystem.md)
+has a quickstart that runs an example and opens its recording.
+
 This repository is deliberately narrow. It contains *only* the data definition — the contract,
 the schemas, and the generators. It pulls no pandas, no SQLAlchemy, no Airflow. Anything that
 *uses* the data (ingestion pipelines, storage backends, orchestration, shared helpers) lives in
@@ -15,6 +33,48 @@ the schemas, and the generators. It pulls no pandas, no SQLAlchemy, no Airflow. 
 never the other way round.
 
 ---
+
+## Quickstart
+
+```bash
+pip install pulse-data
+```
+
+```python
+from inventzia.pulse.data.schemas.platform.heart_beat import HeartBeat
+from inventzia.pulse.data.datum.codec import to_json, to_tagged_json
+
+beat = HeartBeat(beatKey="PERIODIC", beatTime=1_283_630_000_000)
+
+print(beat.datum_key, beat.datum_time)
+# PERIODIC 1283630000000          the routing contract every Datum implements
+
+print(to_json(beat))
+# {"beatKey":"PERIODIC","beatTime":1283630000000}
+
+print(to_tagged_json(beat))
+# {"typeId": "com.inventzia.pulse.data.schemas.platform.HeartBeat", "payload": {...}}
+# self-describing: the receiver resolves the type from the registry, in either language
+```
+
+Pure Python, no JVM: the Java bindings are the same schemas generated for the other side, and are
+consumed through Maven rather than this wheel. Defining your own types is
+[Adding a new data type](#adding-a-new-data-type).
+
+## Installing the other components
+
+```bash
+# Build and run applications from Python; installs pulse-data too.
+# Requires Java 17+.
+pip install "pulse-beacon[jpype]"
+
+# Inspect recordings on a desktop; no Java required.
+pip install pulse-viewers
+pulse-events-viewer
+
+# Use only the shared event types and serialization.
+pip install pulse-data
+```
 
 ## What lives here
 

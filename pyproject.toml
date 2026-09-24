@@ -53,6 +53,8 @@ generator = [
 
 [project.urls]
 Homepage = "https://inventzia.com"
+"Pulse ecosystem" = "https://github.com/inventzia-sci-tech/pulse-beacon/blob/main/docs/pulse-ecosystem.md"
+Documentation = "https://github.com/inventzia-sci-tech/pulse-data#readme"
 Repository = "https://github.com/inventzia-sci-tech/pulse-data"
 Changelog = "https://github.com/inventzia-sci-tech/pulse-data/blob/main/CHANGELOG.md"
 
