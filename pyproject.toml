@@ -14,7 +14,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pulse-data"
-version = "0.3.0"
+version = "0.4.0"
 description = "Extensible, schema-generated typed events for Python and Java, with shared serialization and runtime type discovery."
 readme = "README.md"
 requires-python = ">=3.11"
