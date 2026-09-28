@@ -26,6 +26,8 @@ class TextMessage(BaseModel):
 
     TYPE_ID:      ClassVar[str] = "com.inventzia.pulse.data.schemas.platform.TextMessage"
     TYPE_VERSION: ClassVar[int] = 1
+    DATUM_KEY_FIELD:  ClassVar[str] = "msg_key"
+    DATUM_TIME_FIELD: ClassVar[str] = "msg_time"
 
     msg_key: str = Field(alias="msgKey")
     """Routing key for this message — e.g. a channel, source identifier, or logical stream name"""

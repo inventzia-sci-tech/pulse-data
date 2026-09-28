@@ -27,6 +27,8 @@ class VectorValue(BaseModel):
 
     TYPE_ID:      ClassVar[str] = "com.inventzia.pulse.data.schemas.common.VectorValue"
     TYPE_VERSION: ClassVar[int] = 1
+    DATUM_KEY_FIELD:  ClassVar[str] = "key"
+    DATUM_TIME_FIELD: ClassVar[str] = "time"
 
     key: str
     """The series or observation-source identifier"""

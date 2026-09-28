@@ -46,6 +46,11 @@ public record EngineStatus(
     public static final String TYPE_ID      = "com.inventzia.pulse.data.schemas.platform.EngineStatus";
     public static final int    TYPE_VERSION = 1;
 
+    /** Record component carrying the routing key ({@code x-datum-key}). */
+    public static final String DATUM_KEY_FIELD  = "statusKey";
+    /** Record component carrying the routing time ({@code x-datum-time}). */
+    public static final String DATUM_TIME_FIELD = "changedAt";
+
     @Override public String getDatumKey()  { return statusKey; }
     @Override public long   getDatumTime() { return changedAt; }
 }

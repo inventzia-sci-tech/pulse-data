@@ -26,6 +26,8 @@ class HeartBeat(BaseModel):
 
     TYPE_ID:      ClassVar[str] = "com.inventzia.pulse.data.schemas.platform.HeartBeat"
     TYPE_VERSION: ClassVar[int] = 1
+    DATUM_KEY_FIELD:  ClassVar[str] = "beat_key"
+    DATUM_TIME_FIELD: ClassVar[str] = "beat_time"
 
     beat_key: str = Field(alias="beatKey")
     """Heartbeat identifier. Typically a fixed label (e.g. "PERIODIC") or a group key when multiple independent heartbeat streams are needed"""

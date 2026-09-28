@@ -28,6 +28,8 @@ class CdfBar(BaseModel):
 
     TYPE_ID:      ClassVar[str] = "com.inventzia.pulse.data.schemas.marketdata.CdfBar"
     TYPE_VERSION: ClassVar[int] = 1
+    DATUM_KEY_FIELD:  ClassVar[str] = "symb"
+    DATUM_TIME_FIELD: ClassVar[str] = "timestamp"
 
     symb: str
     """Instrument symbol or identifier"""

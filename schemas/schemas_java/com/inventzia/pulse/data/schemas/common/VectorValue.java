@@ -50,6 +50,11 @@ public record VectorValue(
     public static final String TYPE_ID      = "com.inventzia.pulse.data.schemas.common.VectorValue";
     public static final int    TYPE_VERSION = 1;
 
+    /** Record component carrying the routing key ({@code x-datum-key}). */
+    public static final String DATUM_KEY_FIELD  = "key";
+    /** Record component carrying the routing time ({@code x-datum-time}). */
+    public static final String DATUM_TIME_FIELD = "time";
+
     @Override public String getDatumKey()  { return key; }
     @Override public long   getDatumTime() { return time; }
 }

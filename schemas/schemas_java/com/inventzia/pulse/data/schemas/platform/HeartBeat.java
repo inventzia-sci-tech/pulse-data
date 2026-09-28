@@ -39,6 +39,11 @@ public record HeartBeat(
     public static final String TYPE_ID      = "com.inventzia.pulse.data.schemas.platform.HeartBeat";
     public static final int    TYPE_VERSION = 1;
 
+    /** Record component carrying the routing key ({@code x-datum-key}). */
+    public static final String DATUM_KEY_FIELD  = "beatKey";
+    /** Record component carrying the routing time ({@code x-datum-time}). */
+    public static final String DATUM_TIME_FIELD = "beatTime";
+
     @Override public String getDatumKey()  { return beatKey; }
     @Override public long   getDatumTime() { return beatTime; }
 }

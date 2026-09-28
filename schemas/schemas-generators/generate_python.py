@@ -244,6 +244,13 @@ def generate_model(schema_path: Path, schemas_root: Path, output_root: Path,
     lines.append(f'')
     lines.append(f'    TYPE_ID:      ClassVar[str] = "{schema_id}"')
     lines.append(f'    TYPE_VERSION: ClassVar[int] = {type_version}')
+    # The field *names* carrying the routing key and time. datum_key/datum_time expose the values;
+    # a mapper (SQL columns, for instance) needs to know which field plays each role.
+    # Note these are the PYTHON attribute names (snake_case). Java's DATUM_KEY_FIELD carries the
+    # record component name, which is the schema property (camelCase) and also the wire name, so the
+    # two constants deliberately differ per language and must not be compared across the bridge.
+    lines.append(f'    DATUM_KEY_FIELD:  ClassVar[str] = "{datum_key_field}"')
+    lines.append(f'    DATUM_TIME_FIELD: ClassVar[str] = "{datum_time_field}"')
     lines.append(f'')
 
     # Required fields first, then optional

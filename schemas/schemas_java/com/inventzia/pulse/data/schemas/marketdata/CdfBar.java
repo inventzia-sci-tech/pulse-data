@@ -62,6 +62,11 @@ public record CdfBar(
     public static final String TYPE_ID      = "com.inventzia.pulse.data.schemas.marketdata.CdfBar";
     public static final int    TYPE_VERSION = 1;
 
+    /** Record component carrying the routing key ({@code x-datum-key}). */
+    public static final String DATUM_KEY_FIELD  = "symb";
+    /** Record component carrying the routing time ({@code x-datum-time}). */
+    public static final String DATUM_TIME_FIELD = "timestamp";
+
     @Override public String getDatumKey()  { return symb; }
     @Override public long   getDatumTime() { return timestamp; }
 }

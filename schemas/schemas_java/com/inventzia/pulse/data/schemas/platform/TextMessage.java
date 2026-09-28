@@ -41,6 +41,11 @@ public record TextMessage(
     public static final String TYPE_ID      = "com.inventzia.pulse.data.schemas.platform.TextMessage";
     public static final int    TYPE_VERSION = 1;
 
+    /** Record component carrying the routing key ({@code x-datum-key}). */
+    public static final String DATUM_KEY_FIELD  = "msgKey";
+    /** Record component carrying the routing time ({@code x-datum-time}). */
+    public static final String DATUM_TIME_FIELD = "msgTime";
+
     @Override public String getDatumKey()  { return msgKey; }
     @Override public long   getDatumTime() { return msgTime; }
 }

@@ -26,6 +26,8 @@ class EngineStatus(BaseModel):
 
     TYPE_ID:      ClassVar[str] = "com.inventzia.pulse.data.schemas.platform.EngineStatus"
     TYPE_VERSION: ClassVar[int] = 1
+    DATUM_KEY_FIELD:  ClassVar[str] = "status_key"
+    DATUM_TIME_FIELD: ClassVar[str] = "changed_at"
 
     status_key: str = Field(alias="statusKey")
     """Routing key for the status stream. A single constant key (rather than the component name) so that one subscriber receives every component's transitions from one registration; the component itself travels in the payload"""
