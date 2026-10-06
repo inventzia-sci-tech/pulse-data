@@ -13,6 +13,10 @@ package com.inventzia.pulse.data.datum;
 
 /** Unchecked exception thrown by {@link DatumCodec} when (de)serialization fails. */
 public class DatumCodecException extends RuntimeException {
+    /** Serialised only if a caller chooses to; fixed so a future field cannot silently
+     *  change the identity of an already-serialised instance. */
+    private static final long serialVersionUID = 1L;
+
 
     public DatumCodecException(String message) {
         super(message);
